@@ -130,6 +130,8 @@ public class Intro_overlay : MonoBehaviour
         if (instance == null) {
             instance = this;
         }
+
+        Ui_util.ApplyFont(gameObject);
     }
 
     void Begin(string[] new_lines, System.Action done)

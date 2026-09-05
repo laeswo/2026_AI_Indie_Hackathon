@@ -116,9 +116,11 @@ public class Spawn_crop : MonoBehaviour
         Holy_sword.Setup(sword);
 
         GameObject smith = Instantiate(smith_prefab, position + new Vector3(smith_offset_x, 0f, 0f), Quaternion.identity);
-        if (smith.GetComponent<Smith_npc>() == null) {
-            smith.AddComponent<Smith_npc>();
+        Smith_npc smith_npc = smith.GetComponent<Smith_npc>();
+        if (smith_npc == null) {
+            smith_npc = smith.AddComponent<Smith_npc>();
         }
+        smith_npc.Bind(sword);
 
         Toast.Show(holy_sword_toast, 2f);
 

@@ -88,6 +88,8 @@ public class Toast : MonoBehaviour
             instance = this;
         }
 
+        Ui_util.ApplyFont(gameObject);
+
         if (group == null && text != null) {
             group = text.GetComponentInParent<CanvasGroup>();
         }

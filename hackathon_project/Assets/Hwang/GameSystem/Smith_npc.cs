@@ -1,7 +1,8 @@
 using UnityEngine;
 
-// 대장장이 NPC. 성검 뒤를 따라 작물과 같은 속도로 걸어오며 "던지지 말라"고 한다. 멈추지 않고 성검과 나란히 흘러간다.
-// 화면 왼쪽 밖으로 나가면 사라진다.
+// 대장장이 NPC. 성검 뒤를 따라 작물과 같은 속도로 걸어오며 "던지지 말라"고 한다.
+// 용사가 성검을 주우면 용사 옆(오른쪽)에 붙어 서서 계속 지켜본다. 던지면 놀라서 커지며 배신 대사, 그 뒤 옅어지며 사라진다.
+// 성검을 안 주우면 성검과 나란히 흘러가 화면 왼쪽 밖에서 사라진다. 그림 정렬(뒤쪽)은 그대로 둔다 — 크기만 커진다.
 // 용사가 성검을 던지면 멈칫하며 뒤로 기울어 배신당한 대사를 하고, 대사가 끝나면 옅어지며 사라진다.
 // 던지지 않으면(안 줍거나 계속 들고 있으면) 사라지지 않고 계속 서 있다.
 //
@@ -40,6 +41,12 @@ public class Smith_npc : MonoBehaviour
     // 배신 반응 (smith_02). 대사가 끝나면 vanish_time 동안 옅어지며 사라진다
     const float stun_time = 0.15f;
     const float betrayal_line_time = 2.5f;
+    const float surprise_scale = 1.6f;      // 놀라면 이만큼 커진다. 정렬은 안 바꾼다
+    const float scale_time = 0.25f;
+
+    // 용사가 성검을 들고 있을 때 옆에 서는 자리. 용사 오른쪽 이만큼
+    const float follow_offset_x = 1.7f;
+    const float follow_speed = 6f;          // 자리로 다가가는 속도 (유닛/초)
     const float hitstop_time = 0.08f;
     const float tilt_angle = -12f;
     const float tilt_time = 0.2f;
@@ -99,9 +106,39 @@ public class Smith_npc : MonoBehaviour
     SpriteRenderer sprite_renderer;
     Color base_color = Color.white;
 
+    // 같이 스폰된 성검과 용사. 성검을 들고 있는지 보고 옆에 붙는다.
+    GameObject sword;
+    Transform player;
+    Vector3 base_scale = Vector3.one;
+    float scale_current = 1f;
+    float scale_target = 1f;
+
+    // Spawn_crop 이 성검을 만든 직후 부른다.
+    public void Bind(GameObject sword_object)
+    {
+        sword = sword_object;
+    }
+
+    // 용사가 성검을 손에 들고 있는가 (흐르지도, 던져지지도 않은 상태).
+    bool SwordHeld()
+    {
+        if (sword == null) {
+            return false;
+        }
+
+        Crop_flow flow = sword.GetComponent<Crop_flow>();
+        return flow != null && !flow.is_flowing && !flow.is_thrown;
+    }
+
     void Start()
     {
         base_y = transform.position.y;
+        base_scale = transform.localScale;
+
+        GameObject player_object = GameObject.FindWithTag("Player");
+        if (player_object != null) {
+            player = player_object.transform;
+        }
 
         sprite_renderer = GetComponentInChildren<SpriteRenderer>();
         if (sprite_renderer != null) {
@@ -184,11 +221,26 @@ public class Smith_npc : MonoBehaviour
             return;
         }
 
-        // 작물(성검)과 같은 속도로 계속 걷는다. 멈추지 않으므로 성검 오른쪽 1.2 유닛을 그대로 유지한다.
         float dt = Time.fixedDeltaTime;
-        walk_time += dt;
-
         Vector3 position = transform.position;
+
+        if (SwordHeld() && player != null) {
+            // 용사가 성검을 들고 있다. 용사 옆자리로 다가가서 선다. 서 있을 땐 바운스도 멈춘다.
+            float target_x = player.position.x + follow_offset_x;
+            float before = position.x;
+            position.x = Mathf.MoveTowards(position.x, target_x, follow_speed * dt);
+
+            bool moving = Mathf.Abs(position.x - before) > 0.0001f;
+            if (moving) {
+                walk_time += dt;
+            }
+            position.y = base_y + (moving ? Mathf.Abs(Mathf.Sin(walk_time * Mathf.PI / bounce_period)) * bounce_amplitude : 0f);
+            transform.position = position;
+            return;
+        }
+
+        // 작물(성검)과 같은 속도로 계속 걷는다. 멈추지 않으므로 성검 오른쪽 1.2 유닛을 그대로 유지한다.
+        walk_time += dt;
         position.x -= World_scroll.current_speed * dt;
         position.y = base_y + Mathf.Abs(Mathf.Sin(walk_time * Mathf.PI / bounce_period)) * bounce_amplitude;
         transform.position = position;
@@ -210,7 +262,19 @@ public class Smith_npc : MonoBehaviour
         UpdateEntrance(dt);
         UpdateBetrayal(dt);
         UpdateTilt(dt);
+        UpdateScale(dt);
         UpdateVanish(dt);
+    }
+
+    // 놀라면 커진다. 사라질 때까지 큰 채로 있다. 그림 정렬은 건드리지 않는다.
+    void UpdateScale(float dt)
+    {
+        if (Mathf.Approximately(scale_current, scale_target)) {
+            return;
+        }
+
+        scale_current = Mathf.MoveTowards(scale_current, scale_target, dt * (surprise_scale - 1f) / scale_time);
+        transform.localScale = base_scale * scale_current;
     }
 
     // 화면 안으로 들어온 순간 등장 대사 두 줄을 차례로.
@@ -265,6 +329,7 @@ public class Smith_npc : MonoBehaviour
 
         betrayal_timer = betrayal_line_time;
         tilt_target = tilt_angle;
+        scale_target = surprise_scale;
 
         string line = Dialogue_table.Line("smith_02");
         if (line != null) {

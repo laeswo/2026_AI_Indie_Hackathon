@@ -1321,7 +1321,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 497740f283af8d34186c8770da40bfc4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dragon
-  max_hp: 200
+  max_hp: 500
   art_faces_left: 0
   breath_art_faces_left: 0
   ground_art_faces_left: 0

@@ -34,6 +34,10 @@ public class Fireball : MonoBehaviour
     const string art_folder = "fireball";
     const string art_clip = "fireball";
     bool clip_art;
+    float clip_ball_diameter;   // 가장 큰 프레임의 머리 지름(월드). 플립북이 작은 프레임을 보여주는 동안에도 판정은 이 값
+    Bounds clip_bounds;         // 가장 큰 프레임의 로컬 사각형(꼬리 포함). 작물 판정 네모의 크기
+    BoxCollider2D hit_box;      // 클립 그림용 트리거 네모. 꼬리를 맞혀도 명중이다
+    Vector2 hit_box_center;     // 안 뒤집었을 때 네모의 로컬 중심. flipX 면 x 를 뒤집는다
 
     // 부서질 때 파편 연출. 파편 크기는 본체 지름 기준 비율.
     int fragment_count = 8;
@@ -122,6 +126,7 @@ public class Fireball : MonoBehaviour
 
         // 진행 방향을 보게 뒤집는다. 그림 방향은 art_faces_left 가 말해 준다.
         Sprite_fit.Face(sprite_renderer, direction.x, art_faces_left);
+        ApplyHitBoxFlip();
     }
 
     // 포물선 발사. initial_velocity 로 출발해 매 프레임 gravity 만큼 아래로 가속한다.
@@ -135,6 +140,7 @@ public class Fireball : MonoBehaviour
 
         // 좌우는 초기 속도의 부호로 정하고, 옵션이 켜져 있으면 속도 방향으로 돌린다.
         Sprite_fit.Face(sprite_renderer, initial_velocity.x, art_faces_left);
+        ApplyHitBoxFlip();
         if (rotate_to_velocity) {
             Sprite_fit.RotateToward(sprite_renderer.transform, sprite_renderer, arc_velocity, art_faces_left);
         }
@@ -170,7 +176,12 @@ public class Fireball : MonoBehaviour
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
 
-        // 콜라이더는 루트에 둔다. 반지름은 scale 에 곱해지므로 나눠서 넣는다.
+        // 콜라이더는 루트에 둔다. 클립 그림이면 꼬리까지 덮는 네모, 아니면 머리 원. 반지름은 scale 에 곱해지므로 나눠서 넣는다.
+        if (clip_art) {
+            FitClipHitBox();
+            return;
+        }
+
         Collider2D existing = GetComponent<Collider2D>();
         CircleCollider2D circle = existing as CircleCollider2D;
         if (existing == null) {
@@ -245,8 +256,12 @@ public class Fireball : MonoBehaviour
     // 판정·불빛·파편의 기준 지름. 클립 그림은 꼬리가 길어서 높이(공 머리)를 보고, 그 외엔 긴 변을 본다.
     float BallDiameter()
     {
+        if (clip_art) {
+            return clip_ball_diameter;
+        }
+
         Vector2 rendered = Sprite_fit.WorldSize(sprite_renderer);
-        return clip_art ? rendered.y : Mathf.Max(rendered.x, rendered.y);
+        return Mathf.Max(rendered.x, rendered.y);
     }
 
     // Resources/fireball 클립을 붙인다. 성공하면 true. 가장 큰 프레임의 높이가 diameter 가 되게 맞추고 한 번 돌린다.
@@ -279,8 +294,37 @@ public class Fireball : MonoBehaviour
         Transform art = sprite_renderer.transform;
         art.localScale = new Vector3(art.localScale.x * k, art.localScale.y * k, art.localScale.z);
 
+        // 플립북을 붙이면 렌더러가 첫(작은) 프레임으로 바뀐다. 판정 기준은 그 전에, 가장 큰 프레임으로 잰다.
+        clip_ball_diameter = Sprite_fit.WorldSize(sprite_renderer).y;
+        clip_bounds = largest.bounds;
+
         Sprite_flipbook.Attach(sprite_renderer, frames, fps, false);
         return true;
+    }
+
+    // 클립 그림 전체(머리+꼬리)를 덮는 트리거 네모. 렌더러가 루트에 있고 피벗이 머리라 sprite.bounds 가 곧 로컬 사각형이다.
+    // 위에서 떨어지는 화염구는 꼬리가 위로 뻗어 작물이 꼬리를 지나는 일이 많다. 그것도 명중으로 친다.
+    void FitClipHitBox()
+    {
+        if (hit_box == null) {
+            hit_box = gameObject.AddComponent<BoxCollider2D>();
+            hit_box.isTrigger = true;
+        }
+
+        hit_box.size = clip_bounds.size;
+        hit_box_center = clip_bounds.center;
+        ApplyHitBoxFlip();
+    }
+
+    // flipX 는 렌더러만 뒤집고 콜라이더는 그대로다. 그림이 뒤집히면 네모도 같이 뒤집는다. Launch / LaunchArc 뒤에 부른다.
+    void ApplyHitBoxFlip()
+    {
+        if (hit_box == null) {
+            return;
+        }
+
+        bool flipped = sprite_renderer != null && sprite_renderer.flipX;
+        hit_box.offset = new Vector2(flipped ? -hit_box_center.x : hit_box_center.x, hit_box_center.y);
     }
 
     // clips.txt 의 fireball 클립. 공 머리 중심에 피벗을 둔 스프라이트로 다시 만든다 (머리는 오른쪽 끝, 반지름 = 높이/2).

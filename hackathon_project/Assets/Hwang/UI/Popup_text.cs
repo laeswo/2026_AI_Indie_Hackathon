@@ -164,6 +164,8 @@ public class Popup_text : MonoBehaviour
             popup.text = holder.GetComponentInChildren<Text>();
         }
 
+        Ui_util.ApplyFont(holder);
+
         return popup;
     }
 

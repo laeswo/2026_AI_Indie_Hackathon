@@ -47,6 +47,7 @@ public class Start_menu : MonoBehaviour
             return;
         }
 
+        Ui_util.ApplyFont(view.gameObject);
         ApplyTexts();
         ApplySprites();
         WireButtons();

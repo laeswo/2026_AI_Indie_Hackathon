@@ -10,12 +10,41 @@ public static class Ui_util
     static Font font;
 
     // Unity 기본 폰트. 한글은 OS 폰트로 대체돼서 에디터·윈도우 빌드에서 보인다.
+    // 본문용 픽셀 폰트. Resources/Fonts/Galmuri11.ttf. 없으면 Unity 기본 폰트.
     public static Font Font()
     {
         if (font == null) {
+            font = Resources.Load<Font>("Fonts/Galmuri11");
+        }
+        if (font == null) {
+            Debug.LogWarning("Ui_util : Resources/Fonts/Galmuri11.ttf 를 찾지 못해 기본 폰트를 씁니다.");
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         }
         return font;
+    }
+
+    // 큰 글자(제목·결과·배너)용. 픽셀 폰트는 큰 크기용 판이 따로 있어야 뭉개지지 않는다.
+    static Font title_font;
+
+    public static Font TitleFont()
+    {
+        if (title_font == null) {
+            title_font = Resources.Load<Font>("Fonts/Galmuri14");
+        }
+        return title_font != null ? title_font : Font();
+    }
+
+    // root 아래 모든 Text 에 폰트를 씌운다. 프리팹으로 만든 UI(Hud, 시작 화면, 토스트 …)에 쓴다.
+    // 40pt 이상은 제목용 폰트. 픽셀 폰트라 크기는 그대로 두되, 흐려지지 않게 픽셀 단위로 끊는다.
+    public static void ApplyFont(GameObject root)
+    {
+        if (root == null) {
+            return;
+        }
+
+        foreach (Text text in root.GetComponentsInChildren<Text>(true)) {
+            text.font = text.fontSize >= 40 ? TitleFont() : Font();
+        }
     }
 
     // 버튼이 클릭을 받으려면 EventSystem 이 하나 있어야 한다. 새 Input System 을 쓰므로 그쪽 모듈을 붙인다.

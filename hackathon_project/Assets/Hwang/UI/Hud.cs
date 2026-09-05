@@ -168,6 +168,9 @@ public class Hud : MonoBehaviour
         // 결과 패널 버튼이 클릭을 받으려면 EventSystem 이 있어야 한다.
         Ui_util.EnsureEventSystem();
 
+        // 프리팹 글자들을 게임 폰트로.
+        Ui_util.ApplyFont(gameObject);
+
         SetupHearts();
         SetupBar(dragon_hp_fill);
         SetupBar(dragon_hp_ghost);
