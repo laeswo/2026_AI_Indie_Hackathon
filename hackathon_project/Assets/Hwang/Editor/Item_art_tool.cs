@@ -8,7 +8,7 @@ using UnityEngine;
 // 하는 일
 //   1. 그림 png 의 조각 피벗을 가운데로 고친다. 자동 슬라이스는 피벗이 왼쪽 아래(0,0)라 그림이 오브젝트 위치에서
 //      오른쪽 위로 밀려 그려지고 콜라이더와 어긋난다. 임포트 설정만 바꾸고 다시 임포트한다.
-//   2. 그림이 고정인 프리팹(창·검·도끼)에 그림을 넣고 긴 변 item_size 유닛으로 맞춘 뒤 콜라이더를 그림에 맞춰 저장한다.
+//   2. 그림이 고정인 프리팹(창·검·도끼·성검·포션)에 그림을 넣고 긴 변 item_size 유닛으로 맞춘 뒤 콜라이더를 그림에 맞춰 저장한다.
 //   3. ob_normal 은 스폰 때 그림이 바뀌므로 Item_variants 만 붙인다.
 // 조각이 여러 개면(자동 슬라이스 부스러기) 가장 큰 조각을 쓴다. 다시 실행해도 안전하다. 프리팹 YAML 을 손으로 고치지 않는다.
 public static class Item_art_tool
@@ -33,10 +33,11 @@ public static class Item_art_tool
         new Entry { prefab = "ob_sword",      art = "Ob_Sword/sword", gravity_scale = -1f },
         new Entry { prefab = "ob_axe",        art = "Ob_axe/axe", gravity_scale = -1f },
         new Entry { prefab = "ob_holy_sword", art = "Ob_holy_sword/holysword", box_collider = true, gravity_scale = -1f },
+        new Entry { prefab = "ob_hp_drink",   art = "OB_HP_Drink/hp", gravity_scale = -1f },
     };
 
     // 피벗을 가운데로 고칠 그림 폴더. ob_normal 의 그림도 여기 포함.
-    static readonly string[] art_folders = { "Ob_Spear", "Ob_Sword", "Ob_axe", "Ob_holy_sword", "Ob_normal" };
+    static readonly string[] art_folders = { "Ob_Spear", "Ob_Sword", "Ob_axe", "Ob_holy_sword", "Ob_normal", "OB_HP_Drink" };
 
     // 스폰 때 그림이 바뀌는 프리팹과 그 그림 폴더. Item_variants 를 붙이고 폴더를 적어 둔다.
     struct Variant_entry

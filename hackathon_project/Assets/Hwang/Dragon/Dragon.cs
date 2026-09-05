@@ -224,6 +224,7 @@ public class Dragon : MonoBehaviour
 
     SpriteRenderer sprite_renderer;
     Animator animator;                  // 있으면 상태 트리거를 넣는다. 없어도 된다
+    Dragon_animation flipbook;          // Resources/dragon 그림으로 도는 플립북. 없어도 된다
     Player player_component;            // 발 위치(foot_offset)를 여기서 읽는다
     CircleCollider2D circle_collider;
     Spawn_crop spawner;                 // 작물이 흐르는 높이를 여기서 읽는다
@@ -296,6 +297,13 @@ public class Dragon : MonoBehaviour
         // 그림이 없으면 마지막 대체로 임시 원. 어느 슬롯이 비었는지 경고한다. 크기는 인스펙터 scale 로 조절한다.
         bool placeholder = Sprite_fit.EnsureSprite(sprite_renderer, placeholder_color, name, "SpriteRenderer.sprite");
         base_color = sprite_renderer.color;
+
+        // Resources/dragon 에 그림이 있으면 플립북으로 돌린다. 크기는 지금 그림 높이(씬에서 맞춘 크기)를 따른다.
+        // Animator 를 직접 붙였으면 그쪽을 존중하고 플립북은 안 붙인다.
+        if (animator == null) {
+            float current_height = Sprite_fit.WorldSize(sprite_renderer).y;
+            flipbook = Dragon_animation.Attach(sprite_renderer, current_height > 0.1f ? current_height : 3f);
+        }
 
         // 조명. 씬에 라이트를 안 놓아도 어둑한 분위기가 깔리고, 몸 주변에 상태 색 불빛이 따라다닌다.
         Scene_lighting.Ensure();
@@ -946,7 +954,7 @@ public class Dragon : MonoBehaviour
             Camera_director.ZoomPunch(end_zoom_amount, end_zoom_time);
             Camera_director.Flash(end_flash_color, end_flash_time);
 
-            Game_flow.End("드래곤 격추");
+            Game_flow.End("게임 승리");
             return damage;
         }
 
@@ -966,6 +974,31 @@ public class Dragon : MonoBehaviour
         heal_timer -= Time.deltaTime;
         stagger_flash_timer -= Time.deltaTime;
         UpdateColor();
+        UpdateFlipbookSpeed();
+    }
+
+    // 상태에 따라 날갯짓 빠르기. 떠 있을 땐 느긋하게, 예고·공격 중엔 빠르게, 포효는 더 빠르게.
+    void UpdateFlipbookSpeed()
+    {
+        if (flipbook == null) {
+            return;
+        }
+
+        float speed = 1f;
+        if (state is State_roar) {
+            speed = 2f;
+        }
+        else if (state is State_stagger) {
+            speed = 0.35f;
+        }
+        else if (!state.is_hovering) {
+            speed = 1.6f;
+        }
+        else if (state is not State_idle) {
+            speed = 1.3f;
+        }
+
+        flipbook.SetSpeed(speed * SpeedScale());
     }
 
     void UpdateColor()

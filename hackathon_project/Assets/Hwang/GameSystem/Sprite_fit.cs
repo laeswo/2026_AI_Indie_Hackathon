@@ -267,15 +267,20 @@ public static class Sprite_fit
             return;
         }
 
+        target.rotation = Quaternion.Euler(0f, 0f, AngleToward(renderer, velocity, art_faces_left, art_angle));
+    }
+
+    // 앞이 velocity 방향을 보게 하는 z 회전(도). Rigidbody2D 가 있는 건 이 값을 body.rotation 에 넣어야 물리가 되돌리지 않는다.
+    public static float AngleToward(SpriteRenderer renderer, Vector2 velocity, bool art_faces_left, float art_angle)
+    {
         float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
+
+        // flipX 로 뒤집혀 있으면 앞이 -x 쪽이라 180 을 더한다. art_faces_left 로 그려진 그림은 flip 없이도 앞이 -x.
         if (FrontIsNegativeX(renderer, art_faces_left)) {
             angle += 180f;
         }
-        else {
-            angle -= art_angle;
-        }
 
-        target.rotation = Quaternion.Euler(0f, 0f, angle);
+        return angle - art_angle;
     }
 
     // ---------- 애니메이션 훅 ----------

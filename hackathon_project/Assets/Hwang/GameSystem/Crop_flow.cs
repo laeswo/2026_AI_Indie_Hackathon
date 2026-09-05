@@ -206,9 +206,10 @@ public class Crop_flow : MonoBehaviour
         }
 
         // 창처럼 앞뒤가 있는 것은 날아가는 방향을 본다. 유도로 방향이 바뀌어도 따라간다.
-        if (is_thrown && data != null && data.face_velocity) {
+        // Dynamic 바디라 transform 을 돌리면 물리가 되돌리므로 body.rotation 으로 돌린다.
+        if (is_thrown && data != null && data.face_velocity && body.linearVelocity.sqrMagnitude > 0.0001f) {
             body.angularVelocity = 0f;
-            Sprite_fit.RotateToward(transform, sprite_renderer, body.linearVelocity, data.art_faces_left, data.art_angle);
+            body.rotation = Sprite_fit.AngleToward(sprite_renderer, body.linearVelocity, data.art_faces_left, data.art_angle);
         }
     }
 

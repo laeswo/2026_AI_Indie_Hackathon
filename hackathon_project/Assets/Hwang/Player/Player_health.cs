@@ -130,7 +130,7 @@ public class Player_health : MonoBehaviour
             Camera_director.ZoomPunch(death_zoom_amount, death_zoom_time);
             Camera_director.Flash(death_flash_color, death_flash_time);
 
-            Game_flow.End("용사 전사");
+            Game_flow.End("게임 오버");
         }
     }
 }

@@ -30,7 +30,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 3.48, y: 4.3, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.1300954, y: 0.1300954, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -84,7 +84,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 3625043607559282579, guid: 19fb86013d8c24d6cb8410c0aadf30fa, type: 3}
+  m_Sprite: {fileID: -5278734259511242463, guid: b508c92e74c388a4181f2de6f0e5ffb9, type: 3}
   m_Color: {r: 0.12014952, g: 0.9433962, b: 0.25988543, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -156,7 +156,7 @@ CircleCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
+  m_Radius: 5.765
 --- !u!114 &2439190695512141014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -167,13 +167,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e28e57ae4ccff54fbdcd9fc941085b0, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
-  display_name: 생명포션
+  m_Name: 
+  m_EditorClassIdentifier: 
+  display_name: "\uC0DD\uBA85\uD3EC\uC158"
+  dialogue_id: 
   damage_min: 0
   damage_max: 0
   gravity_scale: 0.35
   spin: 0
+  face_velocity: 0
+  art_faces_left: 0
+  art_angle: 0
+  rest_angle: 0
   spawn_weight: 5
   pierce: 0
   counter_hits: 1

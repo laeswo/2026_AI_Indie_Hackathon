@@ -67,6 +67,15 @@ public class Player : MonoBehaviour
     bool is_charging;
     float charge_time;
     float current_power;
+
+    // 각도 조준 (창처럼 face_velocity 인 아이템). Y 를 누르고 있는 동안 세기 대신 각도가 위아래로 왕복한다.
+    // 세기는 max_power 고정. 낮게 던지면 직선으로 관통, 높게 던지면 포물선.
+    const float aim_angle_min = 8f;
+    const float aim_angle_max = 65f;
+    const float aim_sweep_speed = 70f;      // 도/초
+    bool aim_by_angle;
+    float aim_angle;
+    float aim_time;
     float pickup_cooldown_timer;
 
     // 줍기 판정 결과를 매 프레임 새로 할당하지 않도록 버퍼를 재사용한다.
@@ -186,12 +195,29 @@ public class Player : MonoBehaviour
 
         Vector2 direction = throw_direction;
 
+        // 각도 조준 중이면 그 각도로. 좌우는 아래에서 드래곤 쪽으로 맞춘다.
+        if (is_charging && aim_by_angle) {
+            float radians = aim_angle * Mathf.Deg2Rad;
+            direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+        }
+
         if (aim_toward_dragon && dragon != null) {
             float sign = dragon.aim_position.x >= transform.position.x ? 1f : -1f;
             direction.x = Mathf.Abs(direction.x) * sign;
         }
 
         return direction.normalized;
+    }
+
+    // 손에 든 게 각도로 조준하는 종류인지 (Crop_data.face_velocity — 창).
+    bool HeldAimsByAngle()
+    {
+        if (held_object == null) {
+            return false;
+        }
+
+        Crop_data data = held_object.GetComponentInChildren<Crop_data>();
+        return data != null && data.face_velocity;
     }
 
     // Update is called once per frame
@@ -231,17 +257,37 @@ public class Player : MonoBehaviour
             is_charging = true;
             charge_time = 0f;
             current_power = min_power;
+
+            // 창 같은 건 각도로 조준한다. 아래에서 출발해 위로 올라간다.
+            aim_by_angle = HeldAimsByAngle();
+            aim_time = 0f;
+            aim_angle = aim_angle_min;
+            if (aim_by_angle) {
+                current_power = max_power;
+            }
         }
 
         if (is_charging && is_holding) {
-            float before = charge_time;
-            charge_time += Time.deltaTime * charge_speed;
-            current_power = min_power + Mathf.PingPong(charge_time, max_power - min_power);
+            if (aim_by_angle) {
+                // 각도가 왕복한다. 세기는 고정.
+                aim_time += Time.deltaTime * aim_sweep_speed;
+                aim_angle = aim_angle_min + Mathf.PingPong(aim_time, aim_angle_max - aim_angle_min);
+                current_power = max_power;
 
-            // 게이지가 처음으로 끝까지 찬 프레임. 던지기 전에 "떼서 던지기" 안내가 뜨게.
-            float full = max_power - min_power;
-            if (before < full && charge_time >= full) {
-                Tutorial.Fire("tuto_throw");
+                if (aim_time >= aim_angle_max - aim_angle_min) {
+                    Tutorial.Fire("tuto_throw");
+                }
+            }
+            else {
+                float before = charge_time;
+                charge_time += Time.deltaTime * charge_speed;
+                current_power = min_power + Mathf.PingPong(charge_time, max_power - min_power);
+
+                // 게이지가 처음으로 끝까지 찬 프레임. 던지기 전에 "떼서 던지기" 안내가 뜨게.
+                float full = max_power - min_power;
+                if (before < full && charge_time >= full) {
+                    Tutorial.Fire("tuto_throw");
+                }
             }
 
             UpdateTrajectory();
@@ -329,7 +375,15 @@ public class Player : MonoBehaviour
         }
 
         SpriteRenderer renderer = held_object.GetComponentInChildren<SpriteRenderer>();
-        Sprite_fit.RotateToward(held_object.transform, renderer, direction, data.art_faces_left, data.art_angle);
+        float angle = Sprite_fit.AngleToward(renderer, direction, data.art_faces_left, data.art_angle);
+
+        // 손에 든 건 Kinematic 바디라 body.rotation 으로 돌려야 물리 동기화가 되돌리지 않는다.
+        if (held_body != null) {
+            held_body.rotation = angle;
+        }
+        else {
+            held_object.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+        }
     }
 
     // 던졌을 때 실제로 생기는 속도. 던지기와 예측선이 같은 함수를 쓰므로 둘이 어긋날 일이 없다.

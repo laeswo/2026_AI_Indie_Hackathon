@@ -170,6 +170,15 @@ public class Throw_trajectory : MonoBehaviour
                 continue;
             }
 
+            // 흘러오는 작물·화염구·대장장이·드래곤도 장애물이 아니다. 작물끼리는 어차피 충돌하지 않고,
+            // 낮게 조준하면 작물 줄을 스치는데 거기서 선이 끊기면 포물선이 사라진 것처럼 보인다. 땅·벽만 막는다.
+            if (hit.collider.GetComponentInParent<Crop_flow>() != null
+                || hit.collider.GetComponentInParent<Fireball>() != null
+                || hit.collider.GetComponentInParent<Smith_npc>() != null
+                || hit.collider.GetComponentInParent<Dragon>() != null) {
+                continue;
+            }
+
             hit_point = hit.point;
             return true;
         }
