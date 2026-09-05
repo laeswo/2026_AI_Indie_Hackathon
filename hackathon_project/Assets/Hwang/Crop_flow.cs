@@ -15,16 +15,38 @@ public class Crop_flow : MonoBehaviour
     public bool is_thrown { get; private set; }
 
     Rigidbody2D body;
+    Collider2D[] colliders;
     float original_gravity_scale;
 
     void Awake()
     {
         body = GetComponent<Rigidbody2D>();
+        colliders = GetComponentsInChildren<Collider2D>();
 
         // 흐르는 동안 중력을 끄므로, 원래 값을 기억해 뒀다가 주워질 때 되돌린다.
         original_gravity_scale = body.gravityScale;
 
+        IgnoreOtherCrops();
         StartFlowing();
+    }
+
+    // 작물끼리는 부딪히지 않는다. 던진 게 뒤따라오는 작물을 튕겨내면 흐름이 엉킨다.
+    // 살아 있는 작물이 몇 개 안 되므로 생성 시점에 전부 훑어도 부담이 없다.
+    void IgnoreOtherCrops()
+    {
+        Crop_flow[] others = FindObjectsByType<Crop_flow>(FindObjectsSortMode.None);
+
+        foreach (Crop_flow other in others) {
+            if (other == this || other.colliders == null) {
+                continue;
+            }
+
+            foreach (Collider2D mine in colliders) {
+                foreach (Collider2D theirs in other.colliders) {
+                    Physics2D.IgnoreCollision(mine, theirs, true);
+                }
+            }
+        }
     }
 
     public void StartFlowing()
@@ -58,6 +80,15 @@ public class Crop_flow : MonoBehaviour
 
         // 배경과 같은 속도를 매 스텝 다시 읽는다. 중간에 속도가 바뀌어도 같이 따라간다.
         body.linearVelocity = new Vector2(-World_scroll.current_speed, 0f);
+    }
+
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        // 던진 작물은 땅이든 뭐든 처음 닿는 순간 사라진다. 바닥에 남아 굴러다니지 않게.
+        // 드래곤은 트리거라 여기로 안 들어오고, Dragon 쪽에서 직접 지운다.
+        if (is_thrown) {
+            Destroy(gameObject);
+        }
     }
 
     void Update()
