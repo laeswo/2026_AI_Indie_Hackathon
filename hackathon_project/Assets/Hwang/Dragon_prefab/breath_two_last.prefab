@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8703280932629084325}
   - component: {fileID: 7032330830916261532}
   m_Layer: 0
-  m_Name: breath_two 1
+  m_Name: breath_two_last
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -81,8 +81,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.16981131, g: 0, b: 0.11255018, a: 1}
+  m_Sprite: {fileID: -1739528243748468702, guid: 8dd4d75ad6a51de4482fbd36b07b9639, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0

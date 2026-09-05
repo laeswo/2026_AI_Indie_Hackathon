@@ -18,7 +18,7 @@ public static class Dragon_clip_tool
     const string resources_folder = "Assets/Hwang/Resources/";
 
     // 클립을 굽는 폴더들. 새 캐릭터가 생기면 여기 추가.
-    static readonly string[] clip_folders = { "Dragon_Breath", "Player" };
+    static readonly string[] clip_folders = { "Dragon_Breath", "Player", "fireball" };
 
     [InitializeOnLoadMethod]
     static void AutoBake()

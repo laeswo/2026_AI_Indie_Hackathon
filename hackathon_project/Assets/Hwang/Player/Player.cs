@@ -235,6 +235,26 @@ public class Player : MonoBehaviour
             return;
         }
 
+        // 드래곤의 마지막 패턴(레이저) 동안 Y 는 연타 버튼이다. 줍기·던지기는 멈추고 누른 횟수를 드래곤에 넘긴다.
+        if (dragon != null && dragon.final_active) {
+            if (is_charging) {
+                is_charging = false;
+                if (throw_trajectory != null) {
+                    throw_trajectory.Hide();
+                }
+            }
+
+            // 들고 있던 건 손에 그대로 붙어 있다.
+            if (is_holding && held_object != null && hand_transform != null) {
+                held_object.transform.position = hand_transform.position;
+            }
+
+            if (Keyboard.current != null && Keyboard.current[hold_key].wasPressedThisFrame) {
+                dragon.FinalMash();
+            }
+            return;
+        }
+
         // 들고 있던 게 파괴되면 먼저 손을 비운다.
         if (is_holding && held_object == null) {
             ClearHold();

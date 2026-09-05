@@ -61,6 +61,12 @@ public class State_idle : Dragon_state
             return;
         }
 
+        // 마지막 패턴. HP 가 1 에 묶인 뒤 하던 패턴을 끝내고 제자리로 왔을 때 시작한다. 페이즈 2 전환보다는 뒤.
+        if (dragon.final_pending) {
+            dragon.StartFinalPattern();
+            return;
+        }
+
         if (dragon.bigfire_pending) {
             dragon.ChangeState(new State_spit(dragon));
             return;

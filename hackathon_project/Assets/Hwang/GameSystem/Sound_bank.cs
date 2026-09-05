@@ -36,6 +36,7 @@ public static class Sound_bank
         { "dragon_roar_sound", new[] { "Dragon_roar_1", "Dragon_roar_2" } },   // 공격 전조
         { "flame_sound",       new[] { "Dragon_fireball" } },                  // 브레스
         { "phase_roar_sound",  new[] { "Dragon_phase2_roar" } },
+        { "last_breath_sound", new[] { "Dragon_last_breath" } },              // 마지막 패턴 레이저 발사
         { "dragon_die_sound",  new[] { "Dragon_die" } },
 
         // UI · 결과 · BGM
@@ -68,25 +69,26 @@ public static class Sound_bank
         return clips.Length == 1 ? clips[0] : clips[Random.Range(0, clips.Length)];
     }
 
-    public static void Play(string id)
+    public static AudioSource Play(string id)
     {
-        Play(id, Vector3.zero, 0f);
+        return Play(id, Vector3.zero, 0f);
     }
 
-    public static void Play(string id, Vector3 position)
+    public static AudioSource Play(string id, Vector3 position)
     {
-        Play(id, position, 0f);
+        return Play(id, position, 0f);
     }
 
     // delay 초 뒤에 튼다. 사망음 뒤에 결과 징글을 이어 붙일 때.
-    public static void Play(string id, Vector3 position, float delay)
+    // 돌려주는 AudioSource 는 긴 소리를 중간에 끊을 때(Audio_util.FadeOut) 쓴다. 파일이 없으면 null.
+    public static AudioSource Play(string id, Vector3 position, float delay)
     {
         AudioClip clip = Get(id);
         if (clip == null) {
-            return;
+            return null;
         }
 
-        Audio_util.PlayAt(clip, position, sfx_volume, delay);
+        return Audio_util.PlayAt(clip, position, sfx_volume, delay);
     }
 
     // ---------- 아이템 ----------

@@ -17,6 +17,8 @@ using UnityEngine;
 //   State_dive_*           찍기(1페이즈). 예고 → 왼쪽 위에서 용사 발밑으로 대각선으로 내리꽂힘 → 박혀서 잠깐 멈춤 → 복귀
 //                          박히는 순간 발이 낮으면 맞는다. 타이밍 맞춰 뛰면 넘는다. 분홍색
 //   State_stagger          상쇄(그로기). 성검에 맞으면 하던 패턴이 끊기고 무방비. 받는 데미지 2배. 끝나면 Idle
+//   State_final            마지막 패턴. HP 가 1 이하로 떨어지려는 순간 1 에 묶고(한 판에 한 번) 맵 전체를 덮는 레이저.
+//                          용사가 Y 를 연타하면 레이저가 드래곤 쪽으로 밀리고 안 누르면 다시 늘어난다. 끝까지 밀면 격추·승리, 시간 안에 못 밀면 게임 오버
 //   State_dead             격추. 그 자리에서 바닥으로 떨어져 붙어 있는다. 다시는 안 움직인다
 // 밥먹기는 상태가 아니라 상시 동작이다. 어느 페이즈든 상태가 can_eat 이면(부유 중, 아래 돌진 중) 몸에 닿은 흘러오는 작물을 삼킨다.
 //
@@ -153,7 +155,7 @@ public class Dragon : MonoBehaviour
     internal int bigfire_damage = 2;
     internal int bigfire_hits_to_break = 2;     // 직선(아래). 크고 느려서 두 번
     internal int bigfire_arc_hits_to_break = 1; // 포물선(위). 작고 빨라서 한 번
-    internal float bigfire_speed_scale = 0.8f;
+    internal float bigfire_speed_scale = 0.55f;  // 큰 화염구 속도 배율. 직선(아래)은 작물 2번을 맞혀야 하니 줍기 쿨타임(1.2초)을 감안해 느리게
     internal float bigfire_arc_scale = 2.0f;    // 포물선(위) 지름(유닛). 롱점프로 넘을 수 있게 직선보다 작다
     internal float bigfire_arc_time = 1.2f;     // 포물선 비행 시간. 이 시간에 용사 발밑에 떨어지게 초속을 정한다
     internal float bigfire_arc_gravity = 12f;   // 포물선 중력
@@ -192,6 +194,30 @@ public class Dragon : MonoBehaviour
     internal float stagger_edge_margin = 2f;        // 화면 밖에서 맞았으면 이만큼 안쪽으로 당긴다
     internal Color stagger_color = new Color(0.6f, 0.6f, 0.7f);   // 그로기 회색
     internal Color stagger_gold = new Color(1f, 0.9f, 0.5f);      // 상쇄 금빛
+
+    // 마지막 패턴. 한 판에 한 번, HP 가 1 이하로 떨어지려는 순간 1 에 묶고 맵 전체를 덮는 레이저를 쏜다(State_final).
+    // 용사는 그동안 Y 를 연타해 레이저를 드래곤 쪽으로 밀어낸다(줄다리기). 안 누르면 다시 늘어난다. 끝까지 밀면 드래곤이 죽고 승리, 시간 안에 못 밀면 게임 오버.
+    // 그림: final_beam_prefab 은 레이저 몸통(넓은 띠, breath_two_last), final_core_prefab 은 입에서 넓어지는 심(세모, breath).
+    // 둘 다 스프라이트만 있으면 되고 크기·피벗은 상관없다. 빛 색은 프리팹 색을 따른다. 비우면 임시 원으로 흰 레이저.
+    // 슬롯은 Dragon_prefab_tool 이 씬의 드래곤에 자동으로 채운다(Assets/Hwang/Dragon_prefab).
+    [Header("마지막 패턴 (레이저)")]
+    public GameObject final_beam_prefab;
+    public GameObject final_core_prefab;
+    internal float final_charge_time = 0.7f;      // 힘 모으기. 화면 가운데 높이로 올라가며 입의 빛이 커진다. 짧게, 바로 시작되게
+    internal float final_mash_time = 8f;          // 연타 제한 시간. 이 안에 레이저를 끝까지 밀어내야 한다
+    internal float final_push_per_press = 0.065f; // Y 한 번에 레이저가 밀리는 양(전체 길이 비율). 끝까지 밀면(1) 승리
+    internal float final_push_decay = 0.14f;      // 안 누르면 초당 이만큼 다시 늘어난다. 초당 3번 아래면 되돌아오고, 5번쯤이면 5초 안에 밀어낸다
+    internal float final_beam_thickness = 7f;     // 레이저 두께(유닛). 화면 높이(10)의 대부분을 덮는다
+    internal float final_cone_length = 3.5f;      // 입에서 넓어지는 심(세모)의 길이. 그 끝에서 몸통 띠가 이어진다
+    internal float final_core_art_angle = 180f;   // 심 그림에서 "입에 닿는 쪽(좁은 끝)" 이 향한 방향(도). 0 오른쪽, 90 위, 180 왼쪽, -90 아래. breath 프리팹은 180
+    internal float final_stand_offset_x = 1.5f;   // 쏘는 동안 제자리에서 용사 반대쪽(왼쪽)으로 이만큼 물러난다
+    internal float final_beam_grow_time = 0.1f;   // 입에서 화면 끝까지 뻗는 시간. 그 뒤 바로 줄다리기
+    internal float final_beam_fade_time = 0.35f;  // 승리·실패 뒤 꺼지는 시간
+    internal float final_shake_amplitude = 0.25f; // 쏘는 동안 계속 흔들림
+    internal Color final_color = new Color(1f, 0.96f, 0.85f);   // 흰빛
+    internal Color final_core_color = Color.white;
+    bool final_done;                              // 한 판에 한 번. 씬을 다시 불러오면 초기화된다
+    internal bool final_pending;                  // HP 는 1 에 묶였는데 아직 하던 패턴이 안 끝났을 때. Idle 이 보고 시작한다
 
     // 격추 연출. Game_flow.End 직전에.
     internal float end_shake_amplitude = 0.3f;
@@ -1056,7 +1082,8 @@ public class Dragon : MonoBehaviour
     // 화면에 남은 큰 화염구와 진행 중인 충격파는 여기서 치운다. bigfire_pending / phase2_pending 은 그대로 두고 Idle 이 처리한다.
     internal void EnterStagger(string source)
     {
-        if (!can_act) {
+        // 마지막 패턴이 예약·진행 중이면 그로기 3.5초로 시간을 끌지 않는다. 바로 레이저로 가야 한다.
+        if (!can_act || final_pending || final_active) {
             return;
         }
 
@@ -1080,7 +1107,8 @@ public class Dragon : MonoBehaviour
     // 생명포션 같은 함정 아이템에 맞았을 때. max_hp 를 넘지 않는다. 페이즈 2 예약은 되돌리지 않는다.
     public void Heal(int amount, string source)
     {
-        if (hp <= 0 || Game_flow.is_over) {
+        // 마지막 패턴이 예약·진행 중이면 HP 1 고정. 회복도 안 된다.
+        if (hp <= 0 || Game_flow.is_over || final_pending || final_active) {
             return;
         }
 
@@ -1094,13 +1122,36 @@ public class Dragon : MonoBehaviour
     // 실제로 깎은 양을 돌려준다. 그로기 중이면 배가 된 값. 이미 죽었거나 게임이 끝났으면 0.
     public int TakeDamage(int damage, string source)
     {
-        if (hp <= 0 || Game_flow.is_over) {
+        // 마지막 패턴 중이거나 예약된 뒤에는 HP 1 에 묶여 더 안 맞는다.
+        if (hp <= 0 || Game_flow.is_over || final_active || final_pending) {
             return 0;
         }
 
         // 그로기 중에는 무방비. 받는 데미지가 배가 된다.
         if (state is State_stagger) {
             damage = Mathf.RoundToInt(damage * stagger_damage_multiplier);
+        }
+
+        // 마지막 패턴. 이 한 방으로 HP 가 1 이하가 되면 1 에 묶고 레이저로 넘어간다. 한 판에 한 번.
+        if (!final_done && hp - damage <= 1) {
+            damage = Mathf.Max(0, hp - 1);
+            hp = 1;
+            hurt_timer = hurt_flash_time;
+            final_done = true;
+
+            Sprite_fit.Trigger(animator, "hurt");
+            Debug.Log("명중! " + source + " -" + damage + " (드래곤 HP 1/" + max_hp + ") → 마지막 패턴 예약");
+
+            // 하던 패턴 도중에는 끊지 않는다. 1페이즈였다면 페이즈 2 포효를 먼저 거친다.
+            // 하지만 지금 제자리에 떠 있는 중(대기·예고·날갯짓)이면 기다릴 이유가 없으니 바로 시작한다.
+            final_pending = true;
+            if (phase == 1 && !phase2_pending) {
+                phase2_pending = true;
+            }
+            else if (state != null && state.is_hovering) {
+                StartFinalPattern();
+            }
+            return damage;
         }
 
         hp -= damage;
@@ -1116,24 +1167,7 @@ public class Dragon : MonoBehaviour
         Debug.Log("명중! " + source + " -" + damage + " (드래곤 HP " + Mathf.Max(hp, 0) + "/" + max_hp + ")");
 
         if (hp <= 0) {
-            hp = 0;
-
-            // 죽는 그림. 마지막 프레임(쓰러진 모습)에 머문다.
-            PlayAnimationClip("Dead", true);
-
-            // 죽는 소리 먼저, 승리 징글은 그 뒤에. BGM 은 Game_flow.End 가 멈춘다.
-            Sound_bank.Play("dragon_die_sound", transform.position);
-            Sound_bank.Play("clear_sound", transform.position, result_jingle_delay);
-
-            // 하던 패턴을 끊고 바닥으로. 이전 상태의 Exit 가 불·바람·뱉기 이펙트를 치운다.
-            ChangeState(new State_dead(this));
-
-            // 격추 연출. 흰 플래시 + 줌 + 긴 흔들림 뒤에 종료 배너가 뜬다.
-            Camera_director.Shake(end_shake_amplitude, end_shake_time);
-            Camera_director.ZoomPunch(end_zoom_amount, end_zoom_time);
-            Camera_director.Flash(end_flash_color, end_flash_time);
-
-            Game_flow.End("게임 승리");
+            Die();
             return damage;
         }
 
@@ -1143,6 +1177,75 @@ public class Dragon : MonoBehaviour
         }
 
         return damage;
+    }
+
+    // 격추. HP 0, 죽는 그림·소리, 바닥으로 쓰러지고 게임 승리. TakeDamage 와 마지막 패턴(FinalKill)이 같이 쓴다.
+    void Die()
+    {
+        hp = 0;
+
+        // 죽는 그림. 마지막 프레임(쓰러진 모습)에 머문다.
+        PlayAnimationClip("Dead", true);
+
+        // 죽는 소리 먼저, 승리 징글은 그 뒤에. BGM 은 Game_flow.End 가 멈춘다.
+        Sound_bank.Play("dragon_die_sound", transform.position);
+        Sound_bank.Play("clear_sound", transform.position, result_jingle_delay);
+
+        // 하던 패턴을 끊고 바닥으로. 이전 상태의 Exit 가 불·바람·뱉기·레이저 이펙트를 치운다.
+        ChangeState(new State_dead(this));
+
+        // 격추 연출. 흰 플래시 + 줌 + 긴 흔들림 뒤에 종료 배너가 뜬다.
+        Camera_director.Shake(end_shake_amplitude, end_shake_time);
+        Camera_director.ZoomPunch(end_zoom_amount, end_zoom_time);
+        Camera_director.Flash(end_flash_color, end_flash_time);
+
+        Game_flow.End("게임 승리");
+    }
+
+    // ---------- 마지막 패턴 ----------
+
+    // 레이저 패턴 중인가. 이 동안 Player 는 Y 를 연타 버튼으로 쓰고, 드래곤은 데미지를 받지 않는다.
+    internal bool final_active
+    {
+        get { return state is State_final; }
+    }
+
+    // 레이저 패턴 시작. Idle 이 final_pending 을 보고 부른다. 화면에 남은 큰 화염구·충격파는 치운다.
+    internal void StartFinalPattern()
+    {
+        final_pending = false;
+
+        foreach (Fireball fireball in FindObjectsByType<Fireball>(FindObjectsSortMode.None)) {
+            fireball.ForceBreak();
+        }
+
+        foreach (Ground_eruption eruption in FindObjectsByType<Ground_eruption>(FindObjectsSortMode.None)) {
+            eruption.SinkNow();
+        }
+
+        phase2_pending = false;
+        bigfire_pending = false;
+
+        ChangeState(new State_final(this));
+    }
+
+    // Player 가 Y 를 누를 때마다 부른다. 레이저 패턴이 아니면 무시.
+    internal void FinalMash()
+    {
+        State_final final = state as State_final;
+        if (final != null) {
+            final.Mash();
+        }
+    }
+
+    // 연타를 다 채웠다. 드래곤이 죽고 게임 승리.
+    internal void FinalKill()
+    {
+        if (hp <= 0 || Game_flow.is_over) {
+            return;
+        }
+
+        Die();
     }
 
     // ---------- 표시 ----------

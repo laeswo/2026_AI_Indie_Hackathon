@@ -104,6 +104,27 @@ public class Player_health : MonoBehaviour
         }
     }
 
+    // 드래곤의 마지막 레이저에 맞았다. 무적 시간과 상관없이 바로 죽는다.
+    public void KillInstantly()
+    {
+        if (Game_flow.is_over || hp <= 0) {
+            return;
+        }
+
+        hp = 0;
+
+        Sprite_fit.Trigger(animator, "dead");
+        Sound_bank.Play("die_sound", transform.position);
+
+        Camera_director.Shake(death_shake_amplitude, death_shake_time);
+        Camera_director.ZoomPunch(death_zoom_amount, death_zoom_time);
+        Camera_director.Flash(death_flash_color, death_flash_time);
+        Sound_bank.Play("defeat_sound", transform.position, result_jingle_delay);
+
+        Debug.Log("레이저에 맞았다! 게임 오버");
+        Game_flow.End("게임 오버");
+    }
+
     public void TakeHit(int damage)
     {
         if (is_invincible || Game_flow.is_over || hp <= 0) {

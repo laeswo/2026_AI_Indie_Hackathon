@@ -1331,14 +1331,16 @@ MonoBehaviour:
   sweep_speed: 18
   breath_floor_prefab: {fileID: 1211490145909713613, guid: 98e23ccc0062f554186bdd02692e21b6, type: 3}
   breath_ready_time: 4
-  breath_spread_time: 3
-  ground_prefab: {fileID: 0}
+  breath_spread_time: 1.5
+  ground_prefab: {fileID: 2226326884431171683, guid: 78e1f7e1b3bb27645b9fdeb7b76b2575, type: 3}
   eat_fireball_prefab: {fileID: 5748321109876543211, guid: 7ede9bc90ef7ad04fb932a3b7751353e, type: 3}
   eat_count: 3
   hover_dip_speed: 0.9
   phase2_hp_ratio: 0.5
   phase2_speed: 1.4
   phase2_interval_scale: 2
+  final_beam_prefab: {fileID: 1211490145909713613, guid: 075831dbee332e9468b1cad68edd30e1, type: 3}
+  final_core_prefab: {fileID: 7292491083709207721, guid: 30711eec2c35b3d4c96866f50daac1a9, type: 3}
 --- !u!58 &1814116046
 CircleCollider2D:
   m_ObjectHideFlags: 0

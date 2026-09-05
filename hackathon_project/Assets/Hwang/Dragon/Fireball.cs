@@ -29,6 +29,12 @@ public class Fireball : MonoBehaviour
     internal float hit_radius_ratio = 1.4f;
     float hit_radius = 0.7f;   // 작은 화염구 기본값. MakeBig 이 그림 크기에서 다시 정한다
 
+    // 큰 화염구 그림. Resources/fireball 의 fireball 클립(clips.txt)이 있으면 그걸로 돈다: 불씨에서 커지는 프레임을 한 번 돌고
+    // 마지막(꼬리 달린 화염구)으로 난다. 머리가 오른쪽 끝에 있는 그림이라 피벗을 머리 중심에 둔다. 없으면 프리팹 그림 그대로.
+    const string art_folder = "fireball";
+    const string art_clip = "fireball";
+    bool clip_art;
+
     // 부서질 때 파편 연출. 파편 크기는 본체 지름 기준 비율.
     int fragment_count = 8;
     float fragment_speed = 6f;
@@ -142,11 +148,12 @@ public class Fireball : MonoBehaviour
 
         hits_left = Mathf.Max(1, hits_to_break);
 
-        Sprite_fit.FitDiameter(sprite_renderer, diameter);
+        // 클립 그림이면 공 머리 높이가 지름이고 꼬리는 그 뒤로 뻗는다. 없으면 프리팹 그림을 긴 변 = 지름으로.
+        if (!ApplyClipArt(diameter)) {
+            Sprite_fit.FitDiameter(sprite_renderer, diameter);
+        }
 
-        Vector2 rendered = Sprite_fit.WorldSize(sprite_renderer);
-        float rendered_diameter = Mathf.Max(rendered.x, rendered.y);
-        hit_radius = rendered_diameter * 0.5f * hit_radius_ratio;
+        hit_radius = BallDiameter() * 0.5f * hit_radius_ratio;
 
         damage = big_damage;
         speed *= speed_scale;
@@ -232,8 +239,77 @@ public class Fireball : MonoBehaviour
     // 불빛 반경. 그림이 바뀌어도 렌더 지름 기준이라 따라온다.
     float GlowRadius()
     {
+        return Mathf.Max(glow_min_radius, BallDiameter() * glow_radius_ratio);
+    }
+
+    // 판정·불빛·파편의 기준 지름. 클립 그림은 꼬리가 길어서 높이(공 머리)를 보고, 그 외엔 긴 변을 본다.
+    float BallDiameter()
+    {
         Vector2 rendered = Sprite_fit.WorldSize(sprite_renderer);
-        return Mathf.Max(glow_min_radius, Mathf.Max(rendered.x, rendered.y) * glow_radius_ratio);
+        return clip_art ? rendered.y : Mathf.Max(rendered.x, rendered.y);
+    }
+
+    // Resources/fireball 클립을 붙인다. 성공하면 true. 가장 큰 프레임의 높이가 diameter 가 되게 맞추고 한 번 돌린다.
+    bool ApplyClipArt(float diameter)
+    {
+        float fps;
+        Sprite[] frames = LoadClipFrames(out fps);
+        if (frames == null || sprite_renderer == null) {
+            return false;
+        }
+
+        clip_art = true;
+
+        // 진짜 그림이면 프리팹의 임시 틴트(보라)는 쓰지 않는다.
+        sprite_renderer.color = Color.white;
+        base_color = Color.white;
+
+        // 가장 큰 프레임 기준으로 크기를 잡는다. 같은 PPU 라 나머지는 비율대로 작다.
+        Sprite largest = frames[0];
+        foreach (Sprite frame in frames) {
+            if (frame.rect.height > largest.rect.height) {
+                largest = frame;
+            }
+        }
+        sprite_renderer.sprite = largest;
+
+        // 균등하게 키운다. FitHeight 는 높이만 맞추고 가로는 두기 때문에 꼬리 그림이 찌그러지고 콜라이더 반경도 어긋난다.
+        Vector2 size = Sprite_fit.WorldSize(sprite_renderer);
+        float k = size.y > 0.0001f ? diameter / size.y : 1f;
+        Transform art = sprite_renderer.transform;
+        art.localScale = new Vector3(art.localScale.x * k, art.localScale.y * k, art.localScale.z);
+
+        Sprite_flipbook.Attach(sprite_renderer, frames, fps, false);
+        return true;
+    }
+
+    // clips.txt 의 fireball 클립. 공 머리 중심에 피벗을 둔 스프라이트로 다시 만든다 (머리는 오른쪽 끝, 반지름 = 높이/2).
+    // 그래야 transform(판정 중심·불빛·회전축)이 머리에 오고 꼬리가 뒤로 뻗는다. 뒤집어도 머리는 제자리.
+    static Sprite[] LoadClipFrames(out float fps)
+    {
+        fps = 12f;
+
+        Clip_library.Clip clip = Clip_library.Find(Clip_library.Read(art_folder), art_clip);
+        if (clip == null || clip.frames.Count == 0) {
+            return null;
+        }
+
+        fps = clip.fps;
+
+        Sprite[] result = new Sprite[clip.frames.Count];
+        for (int i = 0; i < result.Length; i++) {
+            Sprite source = clip.frames[i];
+            Rect rect = source.rect;
+
+            float head_radius = rect.height * 0.5f;
+            float pivot_x = rect.width > 0f ? 1f - head_radius / rect.width : 0.5f;
+
+            Sprite rebuilt = Sprite.Create(source.texture, rect, new Vector2(Mathf.Clamp01(pivot_x), 0.5f), source.pixelsPerUnit);
+            rebuilt.name = source.name;
+            result[i] = rebuilt;
+        }
+
+        return result;
     }
 
     void UpdateFlash()
@@ -347,7 +423,7 @@ public class Fireball : MonoBehaviour
     void Shatter()
     {
         Vector2 rendered = Sprite_fit.WorldSize(sprite_renderer);
-        float fragment_size = Mathf.Max(rendered.x, rendered.y) * fragment_size_ratio;
+        float fragment_size = BallDiameter() * fragment_size_ratio;
 
         // 터진 자리에 큰 빛이 남았다가 사라진다. 몸에 붙은 불빛은 몸과 함께 사라진다.
         Scene_lighting.Flash(transform.position, glow_color, shatter_glow_intensity, GlowRadius() * 1.3f, shatter_glow_time);

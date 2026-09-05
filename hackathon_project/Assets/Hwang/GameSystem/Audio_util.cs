@@ -7,16 +7,16 @@ using UnityEngine;
 public static class Audio_util
 {
 
-    public static void PlayAt(AudioClip clip, Vector3 position)
+    public static AudioSource PlayAt(AudioClip clip, Vector3 position)
     {
-        PlayAt(clip, position, 1f, 0f);
+        return PlayAt(clip, position, 1f, 0f);
     }
 
-    // volume 0~1, delay 초 뒤 재생.
-    public static void PlayAt(AudioClip clip, Vector3 position, float volume, float delay)
+    // volume 0~1, delay 초 뒤 재생. 돌려주는 AudioSource 는 중간에 끊을 때(FadeOut) 쓴다. 안 쓰면 끝나고 알아서 사라진다.
+    public static AudioSource PlayAt(AudioClip clip, Vector3 position, float volume, float delay)
     {
         if (clip == null) {
-            return;
+            return null;
         }
 
         GameObject holder = new GameObject("Audio (" + clip.name + ")");
@@ -37,5 +37,20 @@ public static class Audio_util
 
         // 재생이 끝난 직후에 지운다. 여유를 조금 둬서 끝이 잘리지 않게.
         Object.Destroy(holder, delay + clip.length + 0.1f);
+        return source;
+    }
+
+    // 재생 중인 소리를 seconds 동안 줄여서 끈다. 뚝 끊기면 틱 소리가 나서 아주 짧게라도 페이드한다. 이미 끝났으면 아무것도 안 한다.
+    public static void FadeOut(AudioSource source, float seconds)
+    {
+        if (source == null) {
+            return;
+        }
+
+        Audio_fade fade = source.gameObject.GetComponent<Audio_fade>();
+        if (fade == null) {
+            fade = source.gameObject.AddComponent<Audio_fade>();
+        }
+        fade.Begin(source, seconds);
     }
 }
