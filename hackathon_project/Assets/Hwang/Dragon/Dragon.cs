@@ -114,7 +114,8 @@ public class Dragon : MonoBehaviour
     internal float slam_drop_time = 0.3f;       // 떠오른 자리에서 바닥까지 떨어지는 시간. 짧을수록 갑작스럽다
     internal float slam_stun_time = 0.35f;      // 착지 후 눌러앉아 있는 시간. 이때 맞힐 수 있다
     internal float slam_rise_time = 0.6f;       // 부유 위치로 돌아오는 시간
-    internal float wave_height = 0.8f;          // 땅 조각 기준 높이. 발에서 재서 탭 점프(1.65)로 확실히 넘게. 실제는 0.75~1배 랜덤
+    internal float wave_height = 0.8f;          // 땅 기둥 판정 높이. 실제는 0.75~1배 랜덤. 탭 점프(발 약 0.65)로 넘는 밸런스
+    internal float wave_art_height = 1.4f;      // 땅 기둥 그림 높이. 판정보다 길쭉하게 그린다. 기둥 끝은 스쳐도 안 맞는다
     internal int wave_damage = 1;
     internal float segment_spacing = 0.9f;      // 조각 간격 = 조각 가로 폭. 앞머리 속도는 spacing / interval ≈ 12.9 유닛/초
     internal float segment_interval = 0.07f;    // 다음 조각이 솟기까지
@@ -926,6 +927,7 @@ public class Dragon : MonoBehaviour
         config.hold_time = segment_hold_time;
         config.sink_time = segment_sink_time;
         config.height = wave_height;
+        config.art_height = wave_art_height;
         config.damage = wave_damage;
         config.art_faces_left = ground_art_faces_left;
 

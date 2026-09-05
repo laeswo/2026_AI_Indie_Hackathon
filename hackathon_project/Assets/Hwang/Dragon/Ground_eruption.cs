@@ -9,7 +9,8 @@ public struct Ground_eruption_config
     public float rise_time;         // 바닥 아래에서 솟는 시간
     public float hold_time;         // 솟은 채 유지
     public float sink_time;         // 다시 가라앉는 시간
-    public float height;            // 기준 높이. 실제는 0.75~1.0 배 랜덤
+    public float height;            // 판정 기준 높이. 실제는 0.75~1.0 배 랜덤
+    public float art_height;        // 그림 기준 높이. 0 이면 height 와 같다. 더 크면 기둥은 길쭉하게 그리되 판정은 height 까지만
     public int damage;
     public bool art_faces_left;     // 땅 조각 그림이 왼쪽을 향해 그려졌으면 true. 분출 방향에 맞춰 뒤집는다
 }
@@ -27,7 +28,9 @@ public class Ground_eruption : MonoBehaviour
         public Transform transform;
         public SpriteRenderer renderer;   // 그림. 밑변을 맞추는 기준. 없으면 중심 피벗 1×1 로 친다
         public float center_x;
-        public float height;              // 실제 렌더 높이. 판정도 이 값
+        public float height;              // 판정 높이. 그림(art_height)보다 낮을 수 있다 — 그러면 기둥 끝은 스쳐도 안 맞는다
+        public float art_height;          // 실제 렌더 높이. 숨었다 솟는 움직임은 이 값 기준
+        public float width;               // 실제 렌더 폭. 판정 가로 범위도 이 값. 그림이 좁으면 조각 사이가 조금 빈다
         public float bottom_y;            // 지금 밑변 y. 바닥 아래에서 올라와 floor_y 에 닿는다
         public float age;
     }
@@ -140,8 +143,11 @@ public class Ground_eruption : MonoBehaviour
 
     void SpawnSegment(float center_x)
     {
-        // 울퉁불퉁하게. 판정도 이 높이를 쓴다.
-        float height = config.height * Random.Range(0.75f, 1f);
+        // 울퉁불퉁하게. 판정 높이와 그림 높이를 같은 배율로 흔든다. 폭은 그림 비율을 따르고, 그림이 없으면 간격만큼.
+        float scale = Random.Range(0.75f, 1f);
+        float height = config.height * scale;
+        float art_height = (config.art_height > 0f ? config.art_height : config.height) * scale;
+        float width = config.segment_spacing;
 
         GameObject instance = Instantiate(prefab, new Vector3(center_x, floor_y, 0f), Quaternion.identity);
         instance.name = "Ground_segment";
@@ -153,13 +159,17 @@ public class Ground_eruption : MonoBehaviour
             // 용사보다 뒤, 배경보다 앞.
             renderer.sortingOrder = 5;
 
-            // 그림 bounds 로 폭·높이를 맞춘다. 1×1 이라는 가정은 없다. 판정 높이는 실제 렌더 높이.
-            Sprite_fit.FitSize(renderer, config.segment_spacing, height);
+            // 그림의 비율은 지키고 높이만 맞춘다. 폭은 그림을 따라간다: 세로로 긴 바위 기둥이면 조각 사이가 조금 비는데,
+            // 기둥이 늘어선 모양이라 그게 맞다. 판정은 실제 렌더 폭·높이를 그대로 쓴다.
+            Sprite_fit.FitHeight(renderer, art_height);
             Sprite_fit.Face(renderer, direction_sign, config.art_faces_left);
-            height = Sprite_fit.WorldSize(renderer).y;
+
+            Vector2 rendered = Sprite_fit.WorldSize(renderer);
+            art_height = rendered.y;
+            width = rendered.x;
         }
         else {
-            instance.transform.localScale = new Vector3(config.segment_spacing, height, 1f);
+            instance.transform.localScale = new Vector3(config.segment_spacing, art_height, 1f);
         }
 
         Segment segment = new Segment();
@@ -167,6 +177,8 @@ public class Ground_eruption : MonoBehaviour
         segment.renderer = renderer;
         segment.center_x = center_x;
         segment.height = height;
+        segment.art_height = art_height;
+        segment.width = width;
         segment.age = 0f;
 
         // 같은 프레임에 바닥 아래로 내려 놓는다. 그래야 한 프레임도 엉뚱한 곳에 안 보인다.
@@ -213,7 +225,7 @@ public class Ground_eruption : MonoBehaviour
         }
 
         Vector3 position = segment.transform.position;
-        position.y = segment.bottom_y + segment.height * 0.5f;
+        position.y = segment.bottom_y + segment.art_height * 0.5f;
         segment.transform.position = position;
     }
 
@@ -226,7 +238,7 @@ public class Ground_eruption : MonoBehaviour
     // 나이로 지금 밑변 y 를 정한다. 아래에서 솟아(rise) → 유지(hold) → 가라앉음(sink). 다 솟으면 밑변이 바닥에 닿는다.
     float BottomY(Segment segment)
     {
-        float down = HiddenBottomY(segment.height);
+        float down = HiddenBottomY(segment.art_height);   // 그림 전체가 숨도록 그림 높이 기준
         float up = floor_y;
 
         float rise = Mathf.Max(0.001f, config.rise_time);
@@ -306,7 +318,7 @@ public class Ground_eruption : MonoBehaviour
         }
 
         float dx = Mathf.Abs(player.position.x - segment.center_x);
-        if (dx > config.segment_spacing * 0.5f) {
+        if (dx > segment.width * 0.5f) {
             return false;
         }
 
@@ -324,7 +336,7 @@ public class Ground_eruption : MonoBehaviour
             Gizmos.color = IsPlayerOn(segment) ? Color.red : Color.yellow;
             Gizmos.DrawWireCube(
                 new Vector3(segment.center_x, floor_y + top * 0.5f, 0f),
-                new Vector3(config.segment_spacing, top, 0f)
+                new Vector3(segment.width, top, 0f)
             );
         }
     }
