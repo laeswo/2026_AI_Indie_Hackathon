@@ -23,6 +23,8 @@ public class Player_health : MonoBehaviour
     const float hit_glow_radius = 2.5f;
     const float hit_glow_time = 0.25f;
 
+    const float result_jingle_delay = 0.8f;   // 사망음 뒤에 패배 징글이 이어지기까지
+
     // 전사 연출. Game_flow.End 직전에.
     const float death_shake_amplitude = 0.3f;
     const float death_shake_time = 0.5f;
@@ -116,6 +118,7 @@ public class Player_health : MonoBehaviour
         Camera_director.Flash(hit_flash_color, hit_flash_time);
 
         Sprite_fit.Trigger(animator, hp <= 0 ? "dead" : "hurt");
+        Sound_bank.Play(hp <= 0 ? "die_sound" : "hurt_sound", transform.position);
 
         // 맞은 자리에서 붉은 빛이 잠깐 번진다.
         Scene_lighting.Flash(transform.position, hit_glow_color, hit_glow_intensity, hit_glow_radius, hit_glow_time);
@@ -129,6 +132,9 @@ public class Player_health : MonoBehaviour
             Camera_director.Shake(death_shake_amplitude, death_shake_time);
             Camera_director.ZoomPunch(death_zoom_amount, death_zoom_time);
             Camera_director.Flash(death_flash_color, death_flash_time);
+
+            // 죽는 소리 뒤에 패배 징글. BGM 은 Game_flow.End 가 멈춘다.
+            Sound_bank.Play("defeat_sound", transform.position, result_jingle_delay);
 
             Game_flow.End("게임 오버");
         }

@@ -6,13 +6,26 @@ using UnityEngine;
 // 던지지 않으면(안 줍거나 계속 들고 있으면) 사라지지 않고 계속 서 있다.
 //
 // Rigidbody · 콜라이더 · Crop_flow 없음. 판정도 없고 작물로 주워지지도 않는다. 위치는 여기서 직접 옮긴다.
-// 스폰은 Spawn_crop 이 한다 (성검 오른쪽 1.2 유닛, 같은 높이). 프리팹은 그림만 있으면 된다.
+// 스폰은 Spawn_crop 이 한다 (성검 오른쪽 1.2 유닛, 같은 높이). 프리팹은 크기 잡을 임시 그림만 있으면 된다.
+// 그림은 Resources/Smith 에서 읽는다: 서 있을 땐 smith_idle, 성검을 던지면 smith_suprise. 프리팹 그림이 차지하던 높이에 맞춘다.
+// 시트가 Multiple 모드라 텍스처당 가장 큰 조각을 쓰고, 피벗은 가운데로 다시 만든다(반전·정렬이 흔들리지 않게).
 // 대사 타이머와 반응 연출은 unscaled 라 히트스톱 중에도 진행된다. 걷는 이동만 scaled.
 public class Smith_npc : MonoBehaviour
 {
 
-    // 그림이 왼쪽을 보고 그려졌으면 true. 오른쪽을 보고 있으면 인스펙터에서 끈다.
+    // 그림이 왼쪽(용사 쪽)을 보고 그려졌으면 true → 안 뒤집는다. smith_idle / smith_suprise 는 이미 왼쪽을 보게 그려져 있다.
+    // 오른쪽을 보는 그림으로 바꾸면 인스펙터에서 끈다(그러면 flipX 로 뒤집는다).
     public bool art_faces_left = true;
+
+    // 그림. Resources/Smith 의 텍스처 이름.
+    const string art_folder = "Smith";
+    const string idle_art = "smith_idle";
+    const string surprise_art = "smith_suprise";
+    const float default_height = 2f;        // 프리팹에 그림이 없어서 높이를 못 재면 이 높이
+
+    Sprite idle_sprite;
+    Sprite surprise_sprite;
+    float art_height;                       // 프리팹 그림이 차지하던 높이. 새 그림도 이 높이로 맞춘다
 
     // 걷기 · 서기
     const float bounce_amplitude = 0.05f;
@@ -38,6 +51,31 @@ public class Smith_npc : MonoBehaviour
         foreach (Smith_npc smith in FindObjectsByType<Smith_npc>(FindObjectsSortMode.None)) {
             smith.React();
         }
+    }
+
+    // 성검이 없어졌다(드래곤에 맞음 · 화면 밖으로 흘러감 · 땅에 닿음). 대장장이도 같이 사라진다.
+    // 던져서 배신 대사가 진행 중이면 그 대사가 끝난 뒤 사라지는 기존 흐름을 그대로 둔다(끊지 않는다).
+    public static void OnHolySwordGone()
+    {
+        foreach (Smith_npc smith in FindObjectsByType<Smith_npc>(FindObjectsSortMode.None)) {
+            smith.Leave();
+        }
+    }
+
+    // 조용히 옅어지며 사라진다. 이미 사라지는 중이거나 배신 대사 중이면 아무것도 안 한다.
+    void Leave()
+    {
+        if (vanishing || reacted) {
+            return;
+        }
+
+        // 등장 대사가 남았어도 끊는다.
+        if (intro_lines != null) {
+            intro_index = intro_lines.Length;
+        }
+
+        vanishing = true;
+        vanish_timer = vanish_time;
     }
 
     float base_y;
@@ -73,7 +111,74 @@ public class Smith_npc : MonoBehaviour
             base_color = sprite_renderer.color;
             sprite_renderer.sortingOrder = Mathf.Min(sprite_renderer.sortingOrder, sorting_order);
         }
+
+        LoadArt();
+        ShowArt(idle_sprite);
+    }
+
+    // Resources/Smith 에서 두 그림을 읽는다. 프리팹 그림이 차지하던 높이를 먼저 재 둔다.
+    void LoadArt()
+    {
+        if (sprite_renderer == null) {
+            return;
+        }
+
+        Vector2 current = sprite_renderer.sprite != null ? Sprite_fit.WorldSize(sprite_renderer) : Vector2.zero;
+        art_height = current.y > 0.1f ? current.y : default_height;
+
+        Sprite[] sheet = Resources.LoadAll<Sprite>(art_folder);
+        idle_sprite = LargestOf(sheet, idle_art);
+        surprise_sprite = LargestOf(sheet, surprise_art);
+
+        if (idle_sprite == null) {
+            Debug.LogWarning(name + " : Resources/" + art_folder + "/" + idle_art + ".png 을 찾지 못해 프리팹 그림을 그대로 씁니다.");
+        }
+        if (surprise_sprite == null) {
+            Debug.LogWarning(name + " : Resources/" + art_folder + "/" + surprise_art + ".png 을 찾지 못해 성검을 던져도 그림이 안 바뀝니다.");
+        }
+    }
+
+    // 그림을 바꾸고 높이를 art_height 로 맞춘 뒤 용사 쪽(왼쪽)을 보게 뒤집는다. 색은 지금 알파(사라지는 중)를 유지한다.
+    void ShowArt(Sprite sprite)
+    {
+        if (sprite_renderer == null) {
+            return;
+        }
+
+        if (sprite != null) {
+            sprite_renderer.sprite = sprite;
+            Sprite_fit.FitHeight(sprite_renderer, art_height);
+        }
+
         Sprite_fit.Face(sprite_renderer, -1f, art_faces_left);
+    }
+
+    // 시트에서 텍스처 이름이 맞는 조각 중 가장 큰 것. 자동 슬라이스 부스러기를 피한다.
+    // 피벗을 가운데로 둔 새 스프라이트로 만들어 돌려준다. 원본 피벗이 어디든 반전·정렬이 같게.
+    static Sprite LargestOf(Sprite[] sheet, string texture_name)
+    {
+        Sprite largest = null;
+        float largest_area = -1f;
+
+        foreach (Sprite sprite in sheet) {
+            if (sprite == null || sprite.texture == null || sprite.texture.name != texture_name) {
+                continue;
+            }
+
+            float area = sprite.rect.width * sprite.rect.height;
+            if (area > largest_area) {
+                largest_area = area;
+                largest = sprite;
+            }
+        }
+
+        if (largest == null) {
+            return null;
+        }
+
+        Sprite centered = Sprite.Create(largest.texture, largest.rect, new Vector2(0.5f, 0.5f), largest.pixelsPerUnit);
+        centered.name = largest.name;
+        return centered;
     }
 
     void FixedUpdate()
@@ -160,9 +265,10 @@ public class Smith_npc : MonoBehaviour
         }
         reacted = true;
 
-        // 멈칫 + 화면도 잠깐 멈춤. 이 게임 최대 웃음 포인트.
+        // 멈칫 + 화면도 잠깐 멈춤. 이 게임 최대 웃음 포인트. 그림도 놀란 얼굴로.
         stun_timer = stun_time;
         Camera_director.HitStop(hitstop_time);
+        ShowArt(surprise_sprite);
 
         betrayal_timer = betrayal_line_time;
         tilt_target = tilt_angle;

@@ -14,7 +14,10 @@ using UnityEngine;
 //                          직선은 작물 2번, 포물선은 1번으로 격추. 포물선은 작아서 롱점프로도 넘는다
 //   State_slam_*           내려찍기(1페이즈). 예고 → 살짝 떠올랐다가 바닥으로 쿵 → 착지점부터 용사 쪽으로 땅이 연달아 솟음 → 복귀
 //                          솟는 땅은 낮아서 탭 점프로 넘는다. 착지 후 눌러앉은 동안 맞힐 수 있다
+//   State_dive_*           찍기(1페이즈). 예고 → 왼쪽 위에서 용사 발밑으로 대각선으로 내리꽂힘 → 박혀서 잠깐 멈춤 → 복귀
+//                          박히는 순간 발이 낮으면 맞는다. 타이밍 맞춰 뛰면 넘는다. 분홍색
 //   State_stagger          상쇄(그로기). 성검에 맞으면 하던 패턴이 끊기고 무방비. 받는 데미지 2배. 끝나면 Idle
+//   State_dead             격추. 그 자리에서 바닥으로 떨어져 붙어 있는다. 다시는 안 움직인다
 // 밥먹기는 상태가 아니라 상시 동작이다. 어느 페이즈든 상태가 can_eat 이면(부유 중, 아래 돌진 중) 몸에 닿은 흘러오는 작물을 삼킨다.
 //
 //   1페이즈: 돌진(데미지 1) / 내려찍기(충격파 데미지 1) / 먹고 큰 화염구(데미지 2)
@@ -46,6 +49,7 @@ public class Dragon : MonoBehaviour
 
     // 부유. 씬에 놓은 자리를 위쪽 끝으로 삼아 작물 줄까지 내려갔다 올라온다. 좌우로도 조금 흔들린다.
     internal float hover_amplitude_x = 0.6f;
+    internal float screen_inset = 0.4f;       // 씬에 놓은 자리가 화면 끝에 걸치면 몸 전체가 보이도록 이만큼 여유를 두고 안쪽으로 당긴다
     internal float hover_speed_x = 0.5f;
 
     // 등장. 씬에 놓은 자리에서 용사 반대쪽으로 enter_distance 만큼 물러난 곳에서 날아 들어온다.
@@ -80,20 +84,22 @@ public class Dragon : MonoBehaviour
     internal bool invincible_while_returning = true;
     internal float invincible_alpha = 0.55f;
 
-    // 브레스. breath_prefab 은 위쪽이 입에 닿는 줄기(입에서 바닥으로), breath_floor_prefab 은 바닥에서 옆으로 퍼지는 띠.
-    // 둘 다 스프라이트만 있으면 되고 크기·피벗은 상관없다(bounds 로 맞춘다). 띠는 Full Rect 로 임포트하면 텍스처가 반복(Tiled)된다.
+    // 브레스. 드래곤이 착지점 앞 바닥까지 내려와 앉아 입에서 뿜는다(입 그림은 breath 클립). 줄기 그림은 없다.
+    // breath_floor_prefab 은 바닥에서 옆으로 퍼지는 띠. 스프라이트만 있으면 되고 크기·피벗은 상관없다(bounds 로 맞춘다).
+    // 띠는 불꽃 그림 한 장을 길이만큼 늘려 그린다(반복 없음). Resources/Dragon_Breath/fire 의 firefloor 클립이 있으면 그걸로 돈다.
     [Header("브레스 (2페이즈)")]
-    public GameObject breath_prefab;
     public GameObject breath_floor_prefab;
     public float breath_ready_time = 4f;        // 준비. 주황 깜빡임
     public float breath_spread_time = 3f;       // 바닥에서 용사 쪽으로 퍼지는 시간. 느릴수록 절망적이다
-    internal float breath_shoot_time = 0.25f;   // 입에서 바닥까지 뿜는 시간. 이 동안은 안 맞는다
-    internal float breath_shoot_width = 0.8f;   // 입에서 바닥으로 가는 줄기의 끝 폭
-    internal float breath_impact_distance = 2f; // 드래곤 앞 이만큼 떨어진 바닥에 떨어진다
+    internal float breath_approach_time = 0.5f; // 부유 자리에서 착지점 앞 바닥으로 내려오는 시간
+    internal float breath_return_time = 0.6f;   // 다 뿜고 부유 자리로 돌아가는 시간
+    internal float breath_shoot_time = 0.25f;   // 입 벌린 뒤 바닥 불이 붙기까지. 이 동안은 안 맞는다
+    internal float breath_mouth_offset_y = 0f;  // 입 높이. 몸 중심 기준. 그림의 입이 위/아래에 있으면 맞춘다
+    internal float breath_impact_distance = 2f; // 부유 자리에서 이만큼 앞 바닥에서 불이 시작된다. 드래곤은 입이 그 위에 오게 내려온다
     internal float breath_hold_time = 0.5f;     // 다 퍼진 뒤 유지
     internal float breath_fade_time = 0.4f;     // 옅어지며 사라짐
     internal int breath_damage = 3;
-    internal float breath_height = 3f;          // 바닥 불의 높이. 발에서 재서 탭 점프(1.65)로는 못 넘고 홀드(3.54)로는 넘게
+    internal float breath_height = 2.2f;        // 바닥 불의 높이(발 기준). 몸 중심이 이 위면 안 맞는다 → 1.2 이상 떠 있으면 되니 탭 점프(1.65)로 넘는다
     internal float breath_extra_length = 1.5f;  // 용사를 지나 이만큼 더 퍼진다
     internal float breath_player_radius = 0f;   // 0 이면 보이는 네모가 곧 판정
     // 바닥 높이(불이 깔리는 y)는 용사 그림에서 잰 발 위치로 구한다 → FloorY()
@@ -116,7 +122,21 @@ public class Dragon : MonoBehaviour
     internal float segment_hold_time = 0.3f;    // 솟은 채 유지. rise+hold+sink ≈ 0.55초가 용사 아래에 있는 시간
     internal float segment_sink_time = 0.15f;   // 가라앉는 시간
     internal float eruption_overshoot = 2f;     // 용사를 지나 이만큼 더 간다
-    internal float phase1_slam_chance = 0.5f;   // 1페이즈에서 내려찍기 확률. 나머지는 돌진
+    internal float phase1_slam_chance = 0.35f;  // 1페이즈 확률. 내려찍기 / 찍기(phase1_dive_chance) / 나머지 돌진
+
+    // 찍기. 씬에 놓은 자리(왼쪽 위)에서 용사 발밑으로 대각선으로 내리꽂힌다. 돌진(빨강)과 구분되게 분홍.
+    internal float phase1_dive_chance = 0.3f;
+    internal float dive_telegraph_time = 0.8f;  // 예고. 왼쪽 위로 올라가며 분홍 깜빡임
+    internal float dive_time = 0.35f;           // 용사 발밑까지 내리꽂히는 시간. 짧을수록 갑작스럽다
+    internal float dive_stuck_time = 0.4f;      // 박혀 있는 시간. 이때 맞힐 수 있다
+    internal float dive_hit_half_width = 1f;    // 판정 가로 반폭. 목표가 용사 자리라 사실상 항상 안이다
+    internal float dive_hit_height = 0.6f;      // 발이 바닥에서 이보다 낮으면 맞는다. 탭 점프 정점 근처면 넘게
+    internal int dive_damage = 1;
+    internal float dive_shake_amplitude = 0.25f;
+    internal float dive_shake_time = 0.25f;
+    internal float dive_flash_intensity = 1f;
+    internal float dive_flash_radius = 4f;
+    internal float dive_flash_time = 0.3f;
     internal float slam_shake_amplitude = 0.35f; // 착지 화면 흔들림. 충격파 직후 한 번만. 떨어지는 동안은 안 흔든다
     internal float slam_shake_time = 0.35f;
 
@@ -126,7 +146,8 @@ public class Dragon : MonoBehaviour
     public float hover_dip_speed = 0.9f;        // 내려갔다 올라오는 빠르기 (rad/s). 0.9 면 한 바퀴 7초쯤
     internal float sit_down_time = 0.4f;        // 뱉을 자리(바닥 또는 제자리)로 가는 시간
     internal float bigfire_ready_time = 1.2f;   // 자리에서 깜빡이는 시간
-    internal float sit_up_time = 0.6f;          // 부유 위치로 돌아오는 시간
+    internal float sit_up_time = 0.6f;          // 부유 위치로 돌아오는 시간 (그로기 뒤 복귀에 쓴다)
+    internal float spit_groggy_time = 2.5f;     // 큰 화염구를 뱉고 나서 지쳐 무방비인 시간. 성검 상쇄보다 짧고 연출도 없다
     internal float bigfire_scale = 3.2f;   // 직선(아래) 지름(유닛). 클수록 작물로 맞히기 쉽다. 판정 반경도 같이 커진다
     internal int bigfire_damage = 2;
     internal int bigfire_hits_to_break = 2;     // 직선(아래). 크고 느려서 두 번
@@ -157,6 +178,9 @@ public class Dragon : MonoBehaviour
     internal int default_damage = 10;
     internal float hurt_flash_time = 0.25f;
     internal float hit_hitstop_time = 0.05f;    // 작물 명중 때 아주 짧게 멈칫. 연타해도 큰 값 유지라 누적되지 않는다
+    internal float result_jingle_delay = 0.8f;  // 격추음 뒤에 승리 징글이 이어지기까지
+    internal float dead_fall_time = 0.6f;       // 격추 뒤 바닥까지 떨어지는 시간
+    internal Color dead_color = new Color(0.45f, 0.45f, 0.5f);   // 쓰러진 뒤 어둡게
 
     // 상쇄(성검). 하던 패턴이 끊기고 무방비. 이 게임에서 제일 센 한 방이라 연출도 제일 세다.
     // 등장·포효 중에는 성검도 안 통한다. 그 외엔 무적(돌진 복귀)이어도 통한다.
@@ -199,8 +223,15 @@ public class Dragon : MonoBehaviour
     internal Color eat_color = new Color(0.6f, 0.4f, 1f);         // 아래서 뱉기
     internal Color eat_high_color = new Color(0.78f, 0.62f, 1f);  // 위에서 뱉기. 구분되게 살짝 밝다
     internal Color slam_color = new Color(0.75f, 0.5f, 0.25f);    // 내려찍기 예고·낙하. 충격파(갈색 땅)와 같은 계열
+    internal Color dive_color = new Color(1f, 0.3f, 0.75f);       // 찍기 예고·낙하. 돌진 빨강·뱉기 보라와 구분되는 분홍
     internal Color roar_color = new Color(1f, 0.3f, 0.3f);
     internal Color phase2_tint = new Color(1f, 0.5f, 0.45f);
+
+    // 패턴 예고 알림. 예고가 시작되는 순간 머리 위에 패턴 이름을 패턴 색으로 띄우고 같은 색으로 한 번 번쩍인다.
+    // 2페이즈는 예고가 짧고 몸이 붉어서 색만으로는 뭐가 오는지 읽기 어렵다. 글자가 제일 확실하다.
+    internal float announce_flash_intensity = 1.1f;
+    internal float announce_flash_radius = 5f;
+    internal float announce_flash_time = 0.35f;
     Color placeholder_color = new Color(0.45f, 0.68f, 0.35f);
 
     public int hp { get; private set; }
@@ -226,7 +257,10 @@ public class Dragon : MonoBehaviour
     Animator animator;                  // 있으면 상태 트리거를 넣는다. 없어도 된다
     Dragon_animation flipbook;          // Resources/dragon 그림으로 도는 플립북. 없어도 된다
     Player player_component;            // 발 위치(foot_offset)를 여기서 읽는다
-    CircleCollider2D circle_collider;
+    CircleCollider2D circle_collider;   // 몸 크기(BodyRadius)의 기준. 그림에 맞춘 뒤엔 판정은 외곽선 폴리곤이 맡고 이건 꺼진다
+    Collider2D hit_collider;            // 지금 맞은 판정을 맡는 콜라이더. 그림 외곽선 폴리곤이거나, 외곽선이 없으면 원
+    bool collider_flipped;              // 폴리곤을 만들 때의 flipX. 방향이 바뀌면 다시 만든다
+    internal bool fit_collider_to_art = true;   // 그림이 있으면 콜라이더를 그림에 맞춘다. 끄면 인스펙터 값 그대로
     Spawn_crop spawner;                 // 작물이 흐르는 높이를 여기서 읽는다
     float previous_x;                   // 그림 방향을 정할 때 쓰는 직전 x
     float facing_sign = 1f;
@@ -305,6 +339,10 @@ public class Dragon : MonoBehaviour
             flipbook = Dragon_animation.Attach(sprite_renderer, current_height > 0.1f ? current_height : 3f);
         }
 
+        // 씬에 놓은 자리가 화면 왼쪽 끝에 걸치면 몸이 반쯤 잘려 보인다. 그림 크기를 잰 뒤 몸 전체(좌우 흔들림 포함)가
+        // 보이는 곳까지 당긴다. 화면 비율이 달라도 LeftX 가 그에 맞춰 바뀌므로 어디서든 다 보인다. 위쪽도 같은 식으로 막는다.
+        KeepBasePositionOnScreen();
+
         // 조명. 씬에 라이트를 안 놓아도 어둑한 분위기가 깔리고, 몸 주변에 상태 색 불빛이 따라다닌다.
         Scene_lighting.Ensure();
         body_glow = Scene_lighting.Attach(transform, base_color, body_glow_intensity, body_glow_radius);
@@ -312,15 +350,9 @@ public class Dragon : MonoBehaviour
         // 바닥 불빛에 그림자가 생기게.
         Scene_lighting.AddShadowCaster(gameObject);
 
-        // 몸 크기(판정·앉는 높이)는 콜라이더가 정한다. 그림과 많이 어긋나면 알려만 준다. 콜라이더는 인스펙터에서 사람이 맞춘다.
-        if (!placeholder) {
-            Vector2 art = Sprite_fit.WorldSize(sprite_renderer);
-            float art_size = Mathf.Max(art.x, art.y);
-            float body_size = BodyRadius() * 2f;
-            if (art_size > 0f && (body_size < art_size * 0.6f || body_size > art_size * 1.6f)) {
-                Debug.LogWarning(name + " : 그림 크기(" + art_size.ToString("0.00") + ")와 콜라이더 지름(" + body_size.ToString("0.00")
-                    + ")이 다릅니다. CircleCollider2D 반지름을 그림에 맞춰 주세요.");
-            }
+        // 판정과 몸 크기를 그림에 맞춘다. 임시 원이면 인스펙터 콜라이더 그대로.
+        if (fit_collider_to_art && !placeholder) {
+            FitBodyToArt();
         }
 
         GameObject player_object = GameObject.FindWithTag("Player");
@@ -333,11 +365,8 @@ public class Dragon : MonoBehaviour
 
         attack_timer = NextAttackDelay();
 
-        if (breath_prefab == null) {
-            Debug.LogWarning(name + " : breath_prefab 이 비어 있어서 브레스를 못 씁니다. breath 프리팹을 연결해 주세요.");
-        }
-        else if (breath_floor_prefab == null) {
-            Debug.LogWarning(name + " : breath_floor_prefab 이 비어 있어서 바닥 불도 세모로 그립니다. breath_two 프리팹을 연결해 주세요.");
+        if (breath_floor_prefab == null) {
+            Debug.LogWarning(name + " : breath_floor_prefab 이 비어 있어서 바닥 불을 임시 주황 원으로 그립니다. breath_two 프리팹을 연결해 주세요.");
         }
         if (eat_fireball_prefab == null) {
             Debug.LogWarning(name + " : eat_fireball_prefab 이 비어 있어서 큰 화염구를 임시 원으로 그립니다. eat_fireball 프리팹을 연결해 주세요.");
@@ -373,9 +402,55 @@ public class Dragon : MonoBehaviour
         state.Enter();
 
         // 첫 예고(깜빡임)에 점프 안내. 위기 직전에 떠야 기억된다. 한 판에 한 번만.
-        if (next is State_charge_telegraph || next is State_slam_telegraph || next is State_breath_telegraph) {
+        if (next is State_charge_telegraph || next is State_slam_telegraph || next is State_breath_telegraph || next is State_dive_telegraph) {
             Tutorial.Fire("tuto_jump");
         }
+
+        AnnouncePattern(next);
+    }
+
+    // 예고 상태로 들어갈 때 패턴 이름을 머리 위에 띄우고 패턴 색으로 번쩍인다. 글자는 예고가 끝날 때까지 남는다.
+    void AnnouncePattern(Dragon_state next)
+    {
+        string label;
+        Color color;
+        float seconds;
+
+        if (next is State_charge_telegraph) {
+            label = "돌진!";
+            color = sweep_telegraph_color;
+            seconds = sweep_telegraph_time / SpeedScale();
+        }
+        else if (next is State_breath_telegraph) {
+            label = "브레스!";
+            color = breath_telegraph_color;
+            seconds = breath_ready_time;
+        }
+        else if (next is State_wing_telegraph) {
+            label = "날갯짓!";
+            color = wing_color;
+            seconds = wing_telegraph_time / SpeedScale();
+        }
+        else if (next is State_slam_telegraph) {
+            label = "내려찍기!";
+            color = slam_color;
+            seconds = slam_telegraph_time / SpeedScale();
+        }
+        else if (next is State_dive_telegraph) {
+            label = "찍기!";
+            color = dive_color;
+            seconds = dive_telegraph_time / SpeedScale();
+        }
+        else {
+            return;
+        }
+
+        color.a = 1f;
+        Popup_text.ShowAbove(transform, label, seconds, color);
+        Scene_lighting.Flash(transform.position, color, announce_flash_intensity, announce_flash_radius, announce_flash_time);
+
+        // 전조 포효. 두 소리 중 랜덤.
+        Sound_bank.Play("dragon_roar_sound", transform.position);
     }
 
     // 상태에 맞는 애니메이션 트리거. 예고 넷은 같은 telegraph 를 쓴다. Animator 가 없으면 아무것도 안 한다.
@@ -383,7 +458,7 @@ public class Dragon : MonoBehaviour
     {
         string trigger = null;
 
-        if (next is State_charge_telegraph || next is State_breath_telegraph || next is State_wing_telegraph || next is State_slam_telegraph) {
+        if (next is State_charge_telegraph || next is State_breath_telegraph || next is State_wing_telegraph || next is State_slam_telegraph || next is State_dive_telegraph) {
             trigger = "telegraph";
         }
         else if (next is State_charge_dive) {
@@ -454,6 +529,36 @@ public class Dragon : MonoBehaviour
 
         facing_sign = sign;
         Sprite_fit.Face(sprite_renderer, sign, art_faces_left);
+
+        // 그림이 뒤집혔으면 외곽선 콜라이더도 같이 뒤집는다. 비대칭 그림(머리·꼬리)이 맞는 자리와 어긋나지 않게.
+        if (hit_collider is PolygonCollider2D && sprite_renderer.flipX != collider_flipped) {
+            Sprite_fit.FitColliderToArt(sprite_renderer);
+            collider_flipped = sprite_renderer.flipX;
+        }
+    }
+
+    // 콜라이더를 그림에 맞춘다.
+    //   - 맞은 판정: 그림 외곽선(Physics Shape) 모양의 PolygonCollider2D. 던진 작물이 보이는 몸에 닿는 곳에서 맞는다. 원 콜라이더는 꺼진다.
+    //   - 몸 크기(BodyRadius, 앉는 높이·먹는 반경): 실제 그려진 부분의 짧은 변 절반. 투명 여백은 빼고 잰다.
+    // 외곽선이 없는 그림이면 원 콜라이더가 그림 크기로 맞춰진 채 판정을 계속 맡는다.
+    void FitBodyToArt()
+    {
+        Rect shape = Sprite_fit.ArtShapeRect(sprite_renderer);
+        Vector3 art_scale = sprite_renderer.transform.lossyScale;
+        float body_diameter = Mathf.Min(shape.width * Mathf.Abs(art_scale.x), shape.height * Mathf.Abs(art_scale.y));
+
+        if (body_diameter > 0.01f) {
+            circle_collider.radius = body_diameter * 0.5f / Mathf.Max(0.0001f, Mathf.Abs(transform.localScale.x));
+        }
+
+        hit_collider = Sprite_fit.FitColliderToArt(sprite_renderer);
+        collider_flipped = sprite_renderer.flipX;
+
+        // 폴리곤을 못 만들었으면 원이 그대로 판정을 맡아야 한다.
+        if (!(hit_collider is PolygonCollider2D)) {
+            circle_collider.enabled = true;
+            hit_collider = circle_collider;
+        }
     }
 
     // Idle 이 간격을 다 채우면 부른다. 페이즈에 맞는 확률로 다음 상태를 고른다.
@@ -463,7 +568,7 @@ public class Dragon : MonoBehaviour
     internal Dragon_state ChooseAttack()
     {
         float roll = Random.value;
-        bool breath_ready = breath_prefab != null && player != null;
+        bool breath_ready = player != null;
 
         string banned = same_pattern_count >= 2 ? last_pattern : null;
         bool switched = false;
@@ -472,19 +577,14 @@ public class Dragon : MonoBehaviour
         string label;
 
         if (phase == 1) {
-            bool slam = roll < phase1_slam_chance;
+            picked = PickPhase1Pattern(roll, null);
 
-            // 1페이즈는 둘뿐이라 금지된 쪽이 뽑히면 강제로 반대쪽.
-            if (banned == "내려찍기" && slam) {
-                slam = false;
-                switched = true;
-            }
-            else if (banned == "돌진" && !slam) {
-                slam = true;
+            // 금지된 패턴에 걸렸으면 그걸 빼고 나머지끼리의 비율로 다시 고른다.
+            if (picked == banned) {
+                picked = PickPhase1Pattern(roll, banned);
                 switched = true;
             }
 
-            picked = slam ? "내려찍기" : "돌진";
             label = picked;
         }
         else if (phase2_opening_pending) {
@@ -522,9 +622,31 @@ public class Dragon : MonoBehaviour
 
         // 어떤 패턴이 왜 뽑혔는지 콘솔에서 바로 보이게 한다. 확률을 만질 때 이 줄을 보면 된다.
         Debug.Log("[페이즈 " + phase + "] 패턴 선택: " + label + "  (roll " + roll.ToString("0.00")
-            + (breath_ready ? "" : " / 브레스 불가: 프리팹 또는 Player 없음") + ")");
+            + (breath_ready ? "" : " / 브레스 불가: Player 없음") + ")");
 
         return MakePatternState(picked);
+    }
+
+    // 1페이즈 패턴을 확률로 고른다: 내려찍기 / 찍기 / 돌진(나머지). banned 는 뽑기에서 빼고 남은 것들끼리 비율대로.
+    string PickPhase1Pattern(float roll, string banned)
+    {
+        float slam = banned == "내려찍기" ? 0f : phase1_slam_chance;
+        float dive = banned == "찍기" ? 0f : phase1_dive_chance;
+        float charge = banned == "돌진" ? 0f : Mathf.Max(0f, 1f - phase1_slam_chance - phase1_dive_chance);
+
+        float total = slam + dive + charge;
+        if (total <= 0f) {
+            return "돌진";
+        }
+
+        float r = roll * total;
+        if (r < slam) {
+            return "내려찍기";
+        }
+        if (r < slam + dive) {
+            return "찍기";
+        }
+        return "돌진";
     }
 
     // 2페이즈 패턴을 확률로 고른다. banned 는 뽑기에서 빼고, 남은 것들끼리 원래 비율대로 나눈다.
@@ -557,6 +679,8 @@ public class Dragon : MonoBehaviour
         switch (pattern) {
             case "내려찍기":
                 return new State_slam_telegraph(this);
+            case "찍기":
+                return new State_dive_telegraph(this);
             case "돌진":
                 return new State_charge_telegraph(this);
             case "브레스":
@@ -589,6 +713,26 @@ public class Dragon : MonoBehaviour
     }
 
     // ---------- 공용 헬퍼 ----------
+
+    // 부유의 기준점(base_position)을 화면 안으로. Awake 에서 그림을 잰 다음 한 번 부른다.
+    void KeepBasePositionOnScreen()
+    {
+        Vector2 size = Sprite_fit.WorldSize(sprite_renderer);
+        float half_width = size.x * 0.5f;
+        float half_height = size.y * 0.5f;
+
+        Vector2 clamped = base_position;
+        clamped.x = Mathf.Max(clamped.x, World_scroll.LeftX() + half_width + hover_amplitude_x + screen_inset);
+        clamped.y = Mathf.Min(clamped.y, World_scroll.TopY() - half_height - screen_inset);
+
+        if ((clamped - base_position).sqrMagnitude < 0.0001f) {
+            return;
+        }
+
+        Debug.Log(name + " : 씬에 놓은 자리 " + base_position.ToString("0.0") + " 가 화면에 걸쳐서 " + clamped.ToString("0.0") + " 로 당깁니다.");
+        base_position = clamped;
+        transform.position = new Vector3(clamped.x, clamped.y, transform.position.z);
+    }
 
     // 페이즈 2 배율. 간격·예고처럼 "짧아져야 하는" 값은 이걸로 나누고, 속도처럼 "커져야 하는" 값은 곱한다.
     internal float SpeedScale()
@@ -636,6 +780,16 @@ public class Dragon : MonoBehaviour
         return GroundY() + PlayerFootOffset();
     }
 
+    // 지금 이 순간 용사의 발 높이. 뛰어 있으면 그만큼 높다. 판정이 "발이 낮으면 맞는다" 인 패턴이 쓴다.
+    internal float PlayerFootY()
+    {
+        if (player == null) {
+            return FloorY();
+        }
+
+        return player.position.y + PlayerFootOffset();
+    }
+
     // 작물이 흐르는 높이. 스포너가 정하는 값이라 거기서 읽는다.
     internal float CropLaneY()
     {
@@ -659,6 +813,16 @@ public class Dragon : MonoBehaviour
             base_position.x + Mathf.Sin(hover_phase * hover_speed_x) * hover_amplitude_x,
             Mathf.Lerp(top, bottom, t)
         );
+    }
+
+    // 몸 중심에서 지금 그림의 밑변까지 거리(양수). 프레임마다 다르니 매 틱 다시 잰다. 그림이 없으면 콜라이더 반지름.
+    internal float SpriteBottomOffset()
+    {
+        if (sprite_renderer == null || sprite_renderer.sprite == null) {
+            return BodyRadius();
+        }
+
+        return transform.position.y - Sprite_fit.WorldBounds(sprite_renderer).min.y;
     }
 
     // 몸 크기. 콜라이더 반지름에 scale 이 곱해진 월드 기준 값이라 그림과 맞는다.
@@ -842,6 +1006,7 @@ public class Dragon : MonoBehaviour
         }
 
         string label = data != null ? data.display_name : flow.name;
+        bool exploded = false;
 
         Vector2 hit_point = other.transform.position;
 
@@ -851,7 +1016,8 @@ public class Dragon : MonoBehaviour
             Popup_text.ShowDamage(hit_point, data.heal_dragon, true);
         }
         else if (data != null && data.RollExplode()) {
-            // 폭발. 연출과 반경 피해는 Crop_flow 가 하고, 직접 맞은 나는 반경과 무관하게 맞는다. 팝업도 그쪽에서 띄운다.
+            // 폭발. 연출·반경 피해·폭발음은 Crop_flow 가 하고, 직접 맞은 나는 반경과 무관하게 맞는다. 팝업도 그쪽에서 띄운다.
+            exploded = true;
             flow.Explode(this);
         }
         else {
@@ -862,8 +1028,9 @@ public class Dragon : MonoBehaviour
             Popup_text.ShowDamage(hit_point, dealt > 0 ? dealt : damage);
         }
 
-        if (data != null) {
-            Audio_util.PlayAt(data.hit_sound, other.transform.position);
+        // 맞는 소리. 아이템 종류마다 다르다. 폭발했으면 폭발음이 이미 났다.
+        if (!exploded) {
+            Sound_bank.PlayHit(data, other.transform.position);
         }
 
         Destroy(flow.gameObject);
@@ -949,6 +1116,16 @@ public class Dragon : MonoBehaviour
         if (hp <= 0) {
             hp = 0;
 
+            // 죽는 그림. 마지막 프레임(쓰러진 모습)에 머문다.
+            PlayAnimationClip("Dead", true);
+
+            // 죽는 소리 먼저, 승리 징글은 그 뒤에. BGM 은 Game_flow.End 가 멈춘다.
+            Sound_bank.Play("dragon_die_sound", transform.position);
+            Sound_bank.Play("clear_sound", transform.position, result_jingle_delay);
+
+            // 하던 패턴을 끊고 바닥으로. 이전 상태의 Exit 가 불·바람·뱉기 이펙트를 치운다.
+            ChangeState(new State_dead(this));
+
             // 격추 연출. 흰 플래시 + 줌 + 긴 흔들림 뒤에 종료 배너가 뜬다.
             Camera_director.Shake(end_shake_amplitude, end_shake_time);
             Camera_director.ZoomPunch(end_zoom_amount, end_zoom_time);
@@ -975,6 +1152,30 @@ public class Dragon : MonoBehaviour
         stagger_flash_timer -= Time.deltaTime;
         UpdateColor();
         UpdateFlipbookSpeed();
+    }
+
+    // 한 번 재생 클립(Resources/Dragon_Breath 의 .anim 을 Dragon_clip_tool 이 구운 것). 이름은 .anim 파일 이름.
+    // hold_last 면 StopAnimationClip 을 부를 때까지 마지막 프레임에 머문다. 플립북이 없거나 클립이 없으면 조용히 넘어간다.
+    internal void PlayAnimationClip(string clip_name, bool hold_last)
+    {
+        if (flipbook == null) {
+            return;
+        }
+
+        if (!flipbook.PlayClip(clip_name, hold_last)) {
+            Debug.LogWarning(name + " : 애니메이션 클립 '" + clip_name + "' 이 없습니다. Resources/Dragon_Breath 에 " + clip_name + ".anim 을 두고 메뉴 Hwang › 드래곤 애니메이션 클립 굽기.");
+            return;
+        }
+
+        Debug.Log("드래곤 그림: " + clip_name + (hold_last ? " (마지막 프레임 유지)" : ""));
+    }
+
+    // 죽은 뒤에는 끊지 않는다. 브레스 도중 죽으면 상태가 끝나며 Exit 가 부르는데, 그때 쓰러진 그림이 날갯짓으로 되돌아가면 안 된다.
+    internal void StopAnimationClip()
+    {
+        if (flipbook != null && hp > 0) {
+            flipbook.StopClip();
+        }
     }
 
     // 상태에 따라 날갯짓 빠르기. 떠 있을 땐 느긋하게, 예고·공격 중엔 빠르게, 포효는 더 빠르게.
@@ -1010,8 +1211,10 @@ public class Dragon : MonoBehaviour
             : hurt_timer > 0f ? Tint(hurt_color, 1f)
             : state.GetColor(pulse);
 
-        // 페이즈 2 부터는 항상 붉은 기가 돈다.
-        if (phase >= 2) {
+        // 페이즈 2 부터는 항상 붉은 기가 돈다. 단 예고 중(떠 있는데 대기가 아닌 상태)에는 빼서 패턴 색이 그대로 보이게.
+        // 붉은 틴트를 곱하면 주황(브레스)·빨강(돌진)·갈색(내려찍기)이 전부 비슷한 빨강이 돼 구분이 안 된다.
+        bool telegraphing = state.is_hovering && !(state is State_idle);
+        if (phase >= 2 && !telegraphing) {
             color *= phase2_tint;
         }
 

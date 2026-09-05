@@ -34,6 +34,9 @@ public static class Game_flow
         result = message;
         World_scroll.Get().is_running = false;
 
+        // 결과 징글이 들리게 BGM 은 멈춘다. 징글은 죽인 쪽(Dragon / Player_health)이 튼다.
+        Music_player.Stop();
+
         Debug.Log(message);
     }
 

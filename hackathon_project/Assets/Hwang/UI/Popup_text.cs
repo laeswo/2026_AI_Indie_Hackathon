@@ -62,6 +62,12 @@ public class Popup_text : MonoBehaviour
     // 표시 시간을 정해서. NPC 대사처럼 길게 띄울 때.
     public static void ShowAbove(Transform target, string line, float seconds)
     {
+        ShowAbove(target, line, seconds, Color.white);
+    }
+
+    // 색까지 정해서. 드래곤 패턴 예고처럼 색으로 구분할 때.
+    public static void ShowAbove(Transform target, string line, float seconds, Color color)
+    {
         if (target == null || string.IsNullOrEmpty(line)) {
             return;
         }
@@ -80,7 +86,7 @@ public class Popup_text : MonoBehaviour
         popup.follow_target = target;
         popup.base_position = target.position;
         popup.offset = new Vector2(0f, above_offset_y);
-        popup.Begin(line, Color.white, Mathf.Max(0.1f, seconds), above_rise, above_fade_time, 0f, 1f);
+        popup.Begin(line, color, Mathf.Max(0.1f, seconds), above_rise, above_fade_time, 0f, 1f);
 
         following[target] = popup;
     }

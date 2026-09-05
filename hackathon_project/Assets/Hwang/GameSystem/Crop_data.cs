@@ -42,7 +42,7 @@ public class Crop_data : MonoBehaviour
     public float explode_chance = 0f;   // 닿았을 때 이 확률로 폭발
     public int explode_damage = 0;      // 폭발 피해. 반경 안의 드래곤이 받는다
     public float explode_radius = 0f;   // 폭발 반경 (유닛)
-    public float homing_turn_rate = 0f; // 도/초. 0 보다 크면 날아가는 동안 드래곤 쪽으로 이만큼씩 휜다. 성검 240
+    public float homing_turn_rate = 0f; // 도/초. 0 보다 크면 날아가는 동안 드래곤 쪽으로 이만큼씩 휜다. 지금은 쓰는 아이템 없음
 
     [Header("소리 (비어도 됨)")]
     public AudioClip throw_sound;

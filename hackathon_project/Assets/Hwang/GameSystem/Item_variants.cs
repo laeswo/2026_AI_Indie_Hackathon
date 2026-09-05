@@ -164,7 +164,9 @@ public class Item_variants : MonoBehaviour
         if (renderer != null && variant.sprite != null) {
             renderer.sprite = variant.sprite;
             Sprite_fit.FitDiameter(renderer, item_size);
-            FitCollider(renderer);
+
+            // 콜라이더를 그림 외곽선 모양으로. Crop_flow.Awake 도 같은 걸 하지만, 이쪽이 먼저 돌아 그림이 바뀐 직후에 맞춰 둔다.
+            Sprite_fit.FitColliderToArt(renderer);
         }
 
         Crop_data data = GetComponentInChildren<Crop_data>();
@@ -176,17 +178,4 @@ public class Item_variants : MonoBehaviour
         // 인스턴스 이름은 프리팹 이름 그대로 둔다. Dialogue_table 이 "ob_normal" 로도 찾을 수 있게.
     }
 
-    // 원 콜라이더 반지름을 그림 긴 변의 절반(월드)으로. 로컬 값이라 scale 로 나눈다.
-    static void FitCollider(SpriteRenderer renderer)
-    {
-        CircleCollider2D circle = renderer.GetComponentInParent<CircleCollider2D>();
-        if (circle == null) {
-            return;
-        }
-
-        Vector2 world = Sprite_fit.WorldSize(renderer);
-        float longest = Mathf.Max(world.x, world.y);
-        float scale = Mathf.Max(Mathf.Abs(circle.transform.lossyScale.x), Mathf.Abs(circle.transform.lossyScale.y));
-        circle.radius = longest * 0.5f / Mathf.Max(0.0001f, scale);
-    }
 }

@@ -349,6 +349,136 @@ public static class Sprite_fit
         return (int)type + ":" + name;
     }
 
+    // ---------- 콜라이더를 그림에 맞추기 ----------
+
+    // 그림 모양대로 판정하게 콜라이더를 다시 만든다. 렌더러와 같은 오브젝트의 콜라이더만 다룬다(스프라이트 로컬 좌표를 그대로 쓰려고).
+    //   - 스프라이트에 물리 외곽선(임포트 때 알파로 만든 Physics Shape)이 있으면 PolygonCollider2D 를 그 모양대로 만든다.
+    //     기존 원·상자 콜라이더는 끈다(판정이 두 번 나지 않게). trigger 여부는 기존 것에서 물려받는다. flipX 면 외곽선도 뒤집는다.
+    //   - 외곽선이 없으면(코드로 만든 임시 원 등) 기존 콜라이더 크기만 그림 사각형에 맞춘다: 상자는 폭·높이, 원은 짧은 변의 절반.
+    // 다시 불러도 안전하다(같은 폴리곤을 갱신한다). 지금 판정을 맡는 콜라이더를 돌려준다. 그림이 없으면 null.
+    public static Collider2D FitColliderToArt(SpriteRenderer renderer)
+    {
+        if (renderer == null || renderer.sprite == null) {
+            return null;
+        }
+
+        GameObject target = renderer.gameObject;
+        Sprite sprite = renderer.sprite;
+        Collider2D[] existing = target.GetComponents<Collider2D>();
+
+        bool is_trigger = false;
+        foreach (Collider2D collider in existing) {
+            if (!(collider is PolygonCollider2D)) {
+                is_trigger |= collider.isTrigger;
+            }
+        }
+
+        int shape_count = sprite.GetPhysicsShapeCount();
+        if (shape_count > 0) {
+            PolygonCollider2D polygon = target.GetComponent<PolygonCollider2D>();
+            if (polygon == null) {
+                polygon = target.AddComponent<PolygonCollider2D>();
+                polygon.isTrigger = is_trigger;
+            }
+
+            polygon.pathCount = shape_count;
+            System.Collections.Generic.List<Vector2> path = new System.Collections.Generic.List<Vector2>();
+            for (int i = 0; i < shape_count; i++) {
+                path.Clear();
+                sprite.GetPhysicsShape(i, path);
+
+                if (renderer.flipX || renderer.flipY) {
+                    for (int p = 0; p < path.Count; p++) {
+                        Vector2 point = path[p];
+                        if (renderer.flipX) {
+                            point.x = -point.x;
+                        }
+                        if (renderer.flipY) {
+                            point.y = -point.y;
+                        }
+                        path[p] = point;
+                    }
+                }
+
+                polygon.SetPath(i, path);
+            }
+
+            // 원·상자는 끈다. 반지름 같은 값은 남아 있어서 몸 크기를 재는 데 계속 쓸 수 있다.
+            foreach (Collider2D collider in existing) {
+                if (collider != polygon) {
+                    collider.enabled = false;
+                }
+            }
+
+            polygon.enabled = true;
+            return polygon;
+        }
+
+        // 외곽선이 없다. 기존 콜라이더를 그림 사각형에 맞춘다.
+        Rect rect = LocalRect(renderer);
+        Collider2D fitted = null;
+
+        foreach (Collider2D collider in existing) {
+            BoxCollider2D box = collider as BoxCollider2D;
+            CircleCollider2D circle = collider as CircleCollider2D;
+
+            if (box != null) {
+                box.size = rect.size;
+                box.offset = rect.center;
+            }
+            else if (circle != null) {
+                circle.radius = Mathf.Min(rect.width, rect.height) * 0.5f;
+                circle.offset = rect.center;
+            }
+            else {
+                continue;
+            }
+
+            if (fitted == null) {
+                fitted = collider;
+            }
+        }
+
+        return fitted;
+    }
+
+    // 그림에서 실제로 그려진 부분(물리 외곽선)을 감싸는 로컬 사각형. 외곽선이 없으면 스프라이트 사각형.
+    // 투명 여백이 많은 그림에서 "몸 크기" 를 잴 때 쓴다. flip 은 반영하지 않는다(크기만 필요할 때).
+    public static Rect ArtShapeRect(SpriteRenderer renderer)
+    {
+        if (renderer == null || renderer.sprite == null) {
+            return new Rect(-0.5f, -0.5f, 1f, 1f);
+        }
+
+        Sprite sprite = renderer.sprite;
+        int shape_count = sprite.GetPhysicsShapeCount();
+        if (shape_count == 0) {
+            Bounds bounds = sprite.bounds;
+            return new Rect(bounds.min.x, bounds.min.y, bounds.size.x, bounds.size.y);
+        }
+
+        float min_x = float.MaxValue, min_y = float.MaxValue, max_x = float.MinValue, max_y = float.MinValue;
+        System.Collections.Generic.List<Vector2> path = new System.Collections.Generic.List<Vector2>();
+
+        for (int i = 0; i < shape_count; i++) {
+            path.Clear();
+            sprite.GetPhysicsShape(i, path);
+            foreach (Vector2 point in path) {
+                min_x = Mathf.Min(min_x, point.x);
+                min_y = Mathf.Min(min_y, point.y);
+                max_x = Mathf.Max(max_x, point.x);
+                max_y = Mathf.Max(max_y, point.y);
+            }
+        }
+
+        if (min_x > max_x || min_y > max_y) {
+            Bounds bounds = sprite.bounds;
+            return new Rect(bounds.min.x, bounds.min.y, bounds.size.x, bounds.size.y);
+        }
+
+        return new Rect(min_x, min_y, max_x - min_x, max_y - min_y);
+    }
+
     // ---------- 내부 ----------
 
     static Vector3 ParentScale(Transform t)

@@ -111,6 +111,13 @@ public class Player : MonoBehaviour
 
         MeasureArt();
 
+        // Resources/Player 에 클립이 있으면 플립북으로 돌린다. 크기는 지금 그림 높이를 따르고 발은 foot_offset 에 고정된다.
+        // Animator 를 직접 붙였으면 그쪽을 존중하고 안 붙인다.
+        if (animator == null && sprite_renderer != null) {
+            float current_height = Sprite_fit.WorldSize(sprite_renderer).y;
+            Player_animation.Attach(gameObject, sprite_renderer, current_height > 0.1f ? current_height : 2f, foot_offset);
+        }
+
         // 바닥 불빛에 그림자가 생기게.
         Scene_lighting.AddShadowCaster(gameObject);
     }
@@ -338,6 +345,8 @@ public class Player : MonoBehaviour
         // 흐름을 먼저 멈춰야 Crop_data.gravity_scale 이 몸에 들어간다. 예측선이 그 값을 읽는다.
         flow.StopFlowing();
 
+        Sound_bank.Play("pickup_sound", flow.transform.position);
+
         held_object = flow.gameObject;
         held_body = flow.GetComponent<Rigidbody2D>();
         is_holding = true;
@@ -418,6 +427,27 @@ public class Player : MonoBehaviour
         throw_trajectory.Show(origin, GetThrowVelocity(), held_body, power_ratio);
     }
 
+    // 던질 때 회전 속도(도/초). 창처럼 날아가는 방향을 보는 것(face_velocity)과 성검은 안 돈다.
+    // 프리팹에 spin 이 있으면 그 값, 없으면(0) 기본 회전. 그래서 새 아이템을 넣어도 알아서 돈다.
+    internal float default_throw_spin = 360f;
+
+    float ThrowSpin(Crop_data data)
+    {
+        if (data != null && data.face_velocity) {
+            return 0f;
+        }
+
+        if (held_object != null && held_object.GetComponentInChildren<Holy_sword>() != null) {
+            return 0f;
+        }
+
+        if (data != null && data.spin > 0f) {
+            return data.spin;
+        }
+
+        return default_throw_spin;
+    }
+
     void ThrowCrop()
     {
         if (held_body != null) {
@@ -429,13 +459,16 @@ public class Player : MonoBehaviour
             held_body.linearVelocity = velocity;
 
             Crop_data data = held_body.GetComponentInParent<Crop_data>();
-            if (data != null) {
-                // 날아가는 쪽으로 구르듯 돈다. 오른쪽이면 시계 방향(음수), 왼쪽이면 반대.
-                // 프리팹 Rigidbody2D 의 Freeze Rotation Z 가 켜져 있으면 안 돈다.
-                held_body.angularVelocity = -data.spin * Mathf.Sign(velocity.x);
 
-                Audio_util.PlayAt(data.throw_sound, held_body.position);
+            // 날아가는 쪽으로 구르듯 돈다. 오른쪽이면 시계 방향(음수), 왼쪽이면 반대.
+            // 프리팹 Rigidbody2D 의 Freeze Rotation Z 가 켜져 있으면 안 돈다.
+            float spin = ThrowSpin(data);
+            if (spin > 0f) {
+                held_body.angularVelocity = -spin * Mathf.Sign(velocity.x);
             }
+
+            // 던지는 소리. 프리팹에 넣어둔 게 있으면 그걸, 없으면 공용 소리.
+            Sound_bank.PlayThrow(data, held_body.position);
         }
 
         pickup_cooldown_timer = pickup_cooldown;

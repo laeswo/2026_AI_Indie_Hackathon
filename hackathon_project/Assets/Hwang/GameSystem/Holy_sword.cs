@@ -12,16 +12,17 @@ public class Holy_sword : MonoBehaviour
     // 대사표 id. Player 가 던질 때 이걸로 성검인지 알아본다.
     public const string dialogue_id = "pickup_holysword";
 
-    // Crop_data 기본값 (프리팹에 없을 때)
+    // Crop_data 기본값 (프리팹에 없을 때). 창처럼 일직선으로 날아간다: 중력 0, 유도 없음. 예측선도 같은 값을 읽어 직선이 된다.
     const int damage = 70;
-    const float gravity_scale = 0.35f;
-    const float homing_turn_rate = 240f;
+    const float gravity_scale = 0f;
+    const float homing_turn_rate = 0f;
+    const float art_angle = 90f;            // 그림에서 칼끝이 향한 방향(도). 0 오른쪽, 90 위. 그림을 바꾸면 여기
 
     // 하늘에서 내려오는 원뿔 빛줄기. 성검 위 화면 밖에서 성검을 향해 좁게 비춘다. 성검이 흐르는 동안 따라다닌다.
     // Additive 라이트라 세기 1 을 넘으면 Bloom 이 번진다. 작게. 빛줄기 자체가 보이는 건 볼륨(volume) 값이다.
     static readonly Color beam_color = new Color(1f, 0.92f, 0.6f);
-    const float beam_intensity = 0.45f;     // 바닥·성검을 비추는 세기
-    const float beam_volume = 0.25f;        // 공중에 보이는 빛줄기의 진하기 (0 이면 줄기가 안 보인다)
+    const float beam_intensity = 0.25f;     // 바닥·성검을 비추는 세기. 은은하게
+    const float beam_volume = 0.1f;         // 공중에 보이는 빛줄기의 진하기 (0 이면 줄기가 안 보인다)
     const float beam_inner_angle = 8f;      // 원뿔 안쪽(꽉 찬) 각도
     const float beam_outer_angle = 22f;     // 원뿔 바깥(옅어지는) 각도. 전체 각이라 작을수록 가늘다
     const float beam_top_margin = 1f;       // 화면 위 끝보다 이만큼 더 위에서 시작한다
@@ -32,8 +33,8 @@ public class Holy_sword : MonoBehaviour
 
     // 던진 뒤 꼬리처럼 따라붙는 약한 후광. 흐르는 동안은 없다.
     static readonly Color glow_color = new Color(1f, 0.9f, 0.55f);
-    const float thrown_intensity = 0.3f;
-    const float thrown_radius_scale = 1.0f; // 던진 뒤 반경 = 그림 긴 변 × 이 값
+    const float thrown_intensity = 0.15f;
+    const float thrown_radius_scale = 0.8f; // 던진 뒤 반경 = 그림 긴 변 × 이 값
 
     // 대장장이(-1)·일반 작물(0)보다 앞에 그린다. 뒤따르는 대장장이에게 가려지지 않게
     const int sorting_order = 1;
@@ -83,6 +84,12 @@ public class Holy_sword : MonoBehaviour
             data.spin = 0f;
             data.spawn_weight = 0f;
             data.homing_turn_rate = homing_turn_rate;
+
+            // 창처럼: Y 를 누르고 있으면 각도로 조준하고, 던지면 칼끝이 날아가는 방향을 본다.
+            // holysword.png 는 칼끝이 위를 향해 그려져 있어서 그림의 "앞" 은 90도.
+            data.face_velocity = true;
+            data.art_faces_left = false;
+            data.art_angle = art_angle;
         }
         if (string.IsNullOrEmpty(data.dialogue_id)) {
             data.dialogue_id = dialogue_id;
@@ -345,6 +352,9 @@ public class Holy_sword : MonoBehaviour
         if (!gameObject.scene.isLoaded) {
             return;
         }
+
+        // 성검이 사라지면 대장장이도 따라 사라진다. 어느 경로로 없어졌든(명중·화면 밖·착지) 여기를 지난다.
+        Smith_npc.OnHolySwordGone();
 
         if (beam != null) {
             beam.FadeOut(fade_out_time);

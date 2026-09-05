@@ -264,21 +264,20 @@ public class Fireball : MonoBehaviour
 
         Crop_data data = flow.data;
 
-        if (data != null) {
-            Audio_util.PlayAt(data.hit_sound, other.transform.position);
-        }
-
-        // 성검은 몇 히트가 남았든 한 방에 격파하고, 안 사라지고 계속 드래곤으로 간다.
-        if (data != null && data.dialogue_id == Holy_sword.dialogue_id) {
-            Debug.Log("큰 화염구 명중 (성검) - 즉시 격파");
+        // 폭발 아이템이 터지면 화염구는 즉시 격파. 반경 피해와 폭발음은 Crop_flow 가 준다.
+        if (data != null && data.RollExplode()) {
+            flow.Explode(null);
+            Destroy(flow.gameObject);
             Break();
             return;
         }
 
-        // 폭발 아이템이 터지면 화염구는 즉시 격파. 반경 피해는 Crop_flow 가 준다.
-        if (data != null && data.RollExplode()) {
-            flow.Explode(null);
-            Destroy(flow.gameObject);
+        // 맞는 소리. 아이템 종류마다 다르다.
+        Sound_bank.PlayHit(data, other.transform.position);
+
+        // 성검은 몇 히트가 남았든 한 방에 격파하고, 안 사라지고 계속 드래곤으로 간다.
+        if (data != null && data.dialogue_id == Holy_sword.dialogue_id) {
+            Debug.Log("큰 화염구 명중 (성검) - 즉시 격파");
             Break();
             return;
         }

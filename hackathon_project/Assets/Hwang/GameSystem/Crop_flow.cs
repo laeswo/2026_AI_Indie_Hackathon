@@ -56,20 +56,37 @@ public class Crop_flow : MonoBehaviour
         }
         looks_applied = true;
 
-        // 주울 수 있는 건 조명과 상관없이 선명하게.
+        // 주울 수 있는 건 조명과 상관없이 선명하게. 그리고 용사보다 앞에 그린다(손에 든 무기가 몸에 가려지지 않게).
+        int above_player = PlayerSortingOrder() + 1;
         foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>()) {
             Scene_lighting.ApplyUnlitMaterial(renderer);
+            renderer.sortingOrder = Mathf.Max(renderer.sortingOrder, above_player);
         }
 
         transform.localScale *= art_scale;
     }
 
+    // 용사 그림의 정렬 순서. 용사가 없거나 그림이 없으면 0.
+    static int PlayerSortingOrder()
+    {
+        GameObject player = GameObject.FindWithTag("Player");
+        if (player == null) {
+            return 0;
+        }
+
+        SpriteRenderer renderer = player.GetComponentInChildren<SpriteRenderer>();
+        return renderer != null ? renderer.sortingOrder : 0;
+    }
+
     void Awake()
     {
         body = GetComponent<Rigidbody2D>();
-        colliders = GetComponentsInChildren<Collider2D>();
         data = GetComponentInChildren<Crop_data>();
         sprite_renderer = GetComponentInChildren<SpriteRenderer>();
+
+        // 판정을 그림 외곽선 모양으로 맞춘다(원 안에 든 얇은 창·검이 빈 공간에서 맞는 일이 없게). 그 다음에 콜라이더 목록을 모은다.
+        Sprite_fit.FitColliderToArt(sprite_renderer);
+        colliders = GetComponentsInChildren<Collider2D>();
 
         // 흐르는 동안 중력을 끄므로, 주워질 때 넣을 값을 여기서 정해 둔다.
         // 예측선(Throw_trajectory)이 body.gravityScale 을 읽으므로 이 값 하나만 맞으면 궤적도 맞는다.
@@ -96,6 +113,11 @@ public class Crop_flow : MonoBehaviour
         }
 
         foreach (Collider2D collider in colliders) {
+            // 외곽선 폴리곤으로 바뀐 뒤 꺼진 원·상자는 판정에 안 쓰이니 건너뛴다.
+            if (!collider.enabled) {
+                continue;
+            }
+
             float hit_size = 0f;
             Vector3 scale = collider.transform.lossyScale;
 
@@ -283,6 +305,7 @@ public class Crop_flow : MonoBehaviour
         Debug.Log(data.display_name + " 폭발! (" + data.explode_damage + ", 반경 " + data.explode_radius + ")");
 
         Camera_director.Shake(explode_shake_amplitude, explode_shake_time);
+        Sound_bank.Play("explosion_sound", center);
         Scene_lighting.Flash(center, new Color(1f, 0.65f, 0.25f), 2.5f, data.explode_radius + 2f, 0.5f);
         SpawnFragments(center);
         Popup_text.ShowText(center, "-" + data.explode_damage + " 폭발!", new Color(1f, 0.5f, 0.2f));

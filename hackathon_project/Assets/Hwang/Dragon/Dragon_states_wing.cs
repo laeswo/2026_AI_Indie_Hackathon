@@ -49,12 +49,16 @@ public class State_wing : Dragon_state
         timer = dragon.wing_duration;
         World_scroll.Get().speed_multiplier = dragon.wind_speed_multiplier;
 
+        // 하얀 바람 줄기가 화면을 가로질러 왼쪽으로 지나간다. 세계가 빨라진 만큼 더 많이, 더 빨리.
+        Wind_effect.Begin(dragon.wind_speed_multiplier);
+
         Debug.Log("날갯짓 - 바람 " + dragon.wind_speed_multiplier + "배, " + dragon.wing_duration + "초");
     }
 
     public override void Exit()
     {
         World_scroll.Get().speed_multiplier = 1f;
+        Wind_effect.End();
     }
 
     public override void FixedTick(float dt)

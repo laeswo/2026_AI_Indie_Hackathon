@@ -104,6 +104,9 @@ public class Start_menu : MonoBehaviour
     // 에디터 OnClick 에 이미 뭔가 연결돼 있으면 두 번 불리지 않게 코드 쪽은 건너뛴다.
     void WireButtons()
     {
+        // 메뉴가 떠 있는 동안은 메인 BGM. 게임 씬 안에 오버레이로 뜬 경우도 여기서 바꿔 준다.
+        Music_player.PlayMain();
+
         if (view.start_button != null && view.start_button.onClick.GetPersistentEventCount() == 0) {
             view.start_button.onClick.AddListener(StartGame);
         }
@@ -134,7 +137,11 @@ public class Start_menu : MonoBehaviour
         }
         started = true;
 
+        Sound_bank.Play("click_sound");
         Game_flow.ResetForNewGame();
+
+        // 전투 BGM. 씬을 새로 불러오면 Music_player 가 알아서 고르지만, 오버레이 메뉴는 씬이 안 바뀌므로 여기서.
+        Music_player.PlayBattle();
 
         // 이미 게임 씬이면 씬을 다시 불러오지 않고(무한 반복이 된다) 메뉴만 걷어낸다.
         if (is_overlay) {
@@ -154,6 +161,7 @@ public class Start_menu : MonoBehaviour
 
     public void QuitGame()
     {
+        Sound_bank.Play("click_sound");
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else

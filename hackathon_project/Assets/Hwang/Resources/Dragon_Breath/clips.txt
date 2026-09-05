@@ -1,0 +1,5 @@
+# 자동 생성. Dragon_clip_tool 이 Dragon_Breath/*.anim 에서 만든다. 손으로 고치지 말고 .anim 을 고친 뒤 메뉴 Hwang › 애니메이션 클립 굽기.
+# 형식: 클립이름 fps 프레임이름 프레임이름 …
+Dead 12 20260905_4_4 20260905_4_6 20260905_4_1 20260905_4_7 20260905_4_12
+breath 12 20260905_4_14 20260905_4_15 20260905_4_16
+firefloor 12 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_0 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_1 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_2 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_3 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_4 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_5 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_6 Gemini_Generated_Image_bava4wbava4wbava-removebg-preview_7

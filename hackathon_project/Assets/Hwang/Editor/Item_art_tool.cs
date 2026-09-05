@@ -34,10 +34,11 @@ public static class Item_art_tool
         new Entry { prefab = "ob_axe",        art = "Ob_axe/axe", gravity_scale = -1f },
         new Entry { prefab = "ob_holy_sword", art = "Ob_holy_sword/holysword", box_collider = true, gravity_scale = -1f },
         new Entry { prefab = "ob_hp_drink",   art = "OB_HP_Drink/hp", gravity_scale = -1f },
+        new Entry { prefab = "ob_bomb",       art = "Ob_Bomb/potan", gravity_scale = -1f },
     };
 
     // 피벗을 가운데로 고칠 그림 폴더. ob_normal 의 그림도 여기 포함.
-    static readonly string[] art_folders = { "Ob_Spear", "Ob_Sword", "Ob_axe", "Ob_holy_sword", "Ob_normal", "OB_HP_Drink" };
+    static readonly string[] art_folders = { "Ob_Spear", "Ob_Sword", "Ob_axe", "Ob_holy_sword", "Ob_normal", "OB_HP_Drink", "Ob_Bomb" };
 
     // 스폰 때 그림이 바뀌는 프리팹과 그 그림 폴더. Item_variants 를 붙이고 폴더를 적어 둔다.
     struct Variant_entry
@@ -74,6 +75,7 @@ public static class Item_art_tool
         int changed = 0;
 
         changed += FixPivots();
+        changed += FixTiledMeshes();
 
         foreach (Entry entry in entries) {
             if (ApplyFixedArt(entry)) {
@@ -172,6 +174,52 @@ public static class Item_art_tool
         provider.Apply();
         importer.SaveAndReimport();
         Debug.Log("아이템 그림: " + path + " 조각 " + rects.Length + "개 피벗을 가운데로 고쳤습니다.");
+        return true;
+    }
+
+    // ---------- 1b. 반복(Tiled)으로 늘리는 그림은 Full Rect ----------
+
+    // 브레스 바닥 불처럼 옆으로 길게 반복해 그리는 그림. 메시가 Tight 면 Unity 가 "Sprite Tiling might not appear correctly" 경고를
+    // 프레임마다 내고 타일이 깨진다. 임포트 설정의 Mesh Type 을 Full Rect 로 바꾼다.
+    static readonly string[] tiled_art_folders = { "Dragon_Breath/fire" };
+
+    static int FixTiledMeshes()
+    {
+        int fixed_count = 0;
+
+        foreach (string folder in tiled_art_folders) {
+            if (!AssetDatabase.IsValidFolder(resources_folder + folder)) {
+                continue;
+            }
+
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { resources_folder + folder });
+            foreach (string guid in guids) {
+                if (FixFullRect(AssetDatabase.GUIDToAssetPath(guid))) {
+                    fixed_count++;
+                }
+            }
+        }
+
+        return fixed_count;
+    }
+
+    static bool FixFullRect(string path)
+    {
+        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer == null || importer.textureType != TextureImporterType.Sprite) {
+            return false;
+        }
+
+        TextureImporterSettings settings = new TextureImporterSettings();
+        importer.ReadTextureSettings(settings);
+        if (settings.spriteMeshType == SpriteMeshType.FullRect) {
+            return false;
+        }
+
+        settings.spriteMeshType = SpriteMeshType.FullRect;
+        importer.SetTextureSettings(settings);
+        importer.SaveAndReimport();
+        Debug.Log("아이템 그림: " + path + " 메시를 Full Rect 로 고쳤습니다 (반복 타일용).");
         return true;
     }
 

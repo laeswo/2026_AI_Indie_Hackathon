@@ -240,11 +240,17 @@ public class Hud : MonoBehaviour
     void SetupButtons()
     {
         if (restart_button != null && restart_button.onClick.GetPersistentEventCount() == 0) {
-            restart_button.onClick.AddListener(Game_flow.Restart);
+            restart_button.onClick.AddListener(() => {
+                Sound_bank.Play("click_sound");
+                Game_flow.Restart();
+            });
         }
 
         if (start_button != null && start_button.onClick.GetPersistentEventCount() == 0) {
-            start_button.onClick.AddListener(Game_flow.GoToStart);
+            start_button.onClick.AddListener(() => {
+                Sound_bank.Play("click_sound");
+                Game_flow.GoToStart();
+            });
         }
     }
 

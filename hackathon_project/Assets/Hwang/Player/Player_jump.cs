@@ -64,6 +64,7 @@ public class Player_jump : MonoBehaviour
                 hold_timer = 0f;
 
                 Sprite_fit.Trigger(animator, "jump");
+                Sound_bank.Play("jump_start_sound", transform.position);
             }
             else {
                 return;
@@ -91,6 +92,9 @@ public class Player_jump : MonoBehaviour
             velocity_y = 0f;
             is_grounded = true;
             is_boosting = false;
+
+            // 여기는 공중에 떠 있다가 바닥에 닿는 순간에만 온다 (서 있을 땐 위에서 일찍 돌아간다).
+            Sound_bank.Play("jump_end_sound", transform.position);
         }
 
         transform.position = position;

@@ -153,7 +153,16 @@ public class State_slam_rise : Dragon_state
 
     Vector2 from;
 
-    public State_slam_rise(Dragon dragon) : base(dragon) { }
+    // 올라간 뒤 attack_timer 에 넣을 값. 음수면 GoIdle(true) 로 간격을 처음부터 다시 센다.
+    readonly float attack_timer_after;
+
+    public State_slam_rise(Dragon dragon) : this(dragon, -1f) { }
+
+    // 그로기 복귀처럼 "올라간 뒤 잠깐만 쉬고 다음 패턴" 이 필요할 때.
+    public State_slam_rise(Dragon dragon, float attack_timer_after) : base(dragon)
+    {
+        this.attack_timer_after = attack_timer_after;
+    }
 
     public override void Enter()
     {
@@ -167,7 +176,13 @@ public class State_slam_rise : Dragon_state
         MoveEased(from, dragon.HoverPosition(), dragon.slam_rise_time);
 
         if (done) {
-            GoIdle(true);
+            if (attack_timer_after >= 0f) {
+                dragon.attack_timer = attack_timer_after;
+                dragon.ChangeState(new State_idle(dragon));
+            }
+            else {
+                GoIdle(true);
+            }
         }
     }
 }
