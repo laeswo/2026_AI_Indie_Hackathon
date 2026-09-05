@@ -1,7 +1,7 @@
 using UnityEngine;
 
-// 대장장이 NPC. 성검 뒤를 따라 걸어 들어와 화면 오른쪽 자리(stop_margin)에 멈춰 서서 "던지지 말라"고 한다.
-// 성검은 그대로 흘러가고 대장장이는 그 자리에 계속 서 있다.
+// 대장장이 NPC. 성검 뒤를 따라 작물과 같은 속도로 걸어오며 "던지지 말라"고 한다. 멈추지 않고 성검과 나란히 흘러간다.
+// 화면 왼쪽 밖으로 나가면 사라진다.
 // 용사가 성검을 던지면 멈칫하며 뒤로 기울어 배신당한 대사를 하고, 대사가 끝나면 옅어지며 사라진다.
 // 던지지 않으면(안 줍거나 계속 들고 있으면) 사라지지 않고 계속 서 있다.
 //
@@ -31,7 +31,7 @@ public class Smith_npc : MonoBehaviour
     const float bounce_amplitude = 0.05f;
     const float bounce_period = 0.35f;
     const float enter_margin = 1f;          // 화면 오른쪽 끝에서 이만큼 들어오면 "등장"
-    const float stop_margin = 2.8f;         // 화면 오른쪽 끝에서 이만큼 안쪽에 멈춰 선다
+    const float despawn_margin = 3f;        // 화면 왼쪽 끝에서 이만큼 더 나가면 사라진다
     const int sorting_order = -1;           // 성검(1)·일반 작물(0) 뒤에 그린다. 성검을 가리지 않게
 
     // 등장 대사 (smith_01). 두 줄을 순서대로.
@@ -79,10 +79,8 @@ public class Smith_npc : MonoBehaviour
     }
 
     float base_y;
-    float stop_x;
     float walk_time;
     bool entered;
-    bool arrived;
 
     // 등장 대사 진행. -1 이면 아직, lines.Length 면 끝
     string[] intro_lines;
@@ -104,7 +102,6 @@ public class Smith_npc : MonoBehaviour
     void Start()
     {
         base_y = transform.position.y;
-        stop_x = World_scroll.RightX() - stop_margin;
 
         sprite_renderer = GetComponentInChildren<SpriteRenderer>();
         if (sprite_renderer != null) {
@@ -183,27 +180,23 @@ public class Smith_npc : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (arrived || stun_timer > 0f || Game_flow.is_over) {
+        if (stun_timer > 0f || Game_flow.is_over) {
             return;
         }
 
-        // 작물과 같은 속도로 걸어 들어오다가 자리에 닿으면 선다.
+        // 작물(성검)과 같은 속도로 계속 걷는다. 멈추지 않으므로 성검 오른쪽 1.2 유닛을 그대로 유지한다.
         float dt = Time.fixedDeltaTime;
         walk_time += dt;
 
         Vector3 position = transform.position;
         position.x -= World_scroll.current_speed * dt;
-
-        if (position.x <= stop_x) {
-            position.x = stop_x;
-            position.y = base_y;
-            arrived = true;
-        }
-        else {
-            position.y = base_y + Mathf.Abs(Mathf.Sin(walk_time * Mathf.PI / bounce_period)) * bounce_amplitude;
-        }
-
+        position.y = base_y + Mathf.Abs(Mathf.Sin(walk_time * Mathf.PI / bounce_period)) * bounce_amplitude;
         transform.position = position;
+
+        // 화면 왼쪽 밖으로 나가면 사라진다. 배신 대사 중이면 대사가 끝난 뒤 vanish 가 처리하니 여기선 안 지운다.
+        if (!reacted && !vanishing && position.x < World_scroll.LeftX() - despawn_margin) {
+            Destroy(gameObject);
+        }
     }
 
     void Update()
