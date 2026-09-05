@@ -53,8 +53,14 @@ public class Popup_text : MonoBehaviour
 
     // ---------- 밖에서 부르는 것 ----------
 
-    // 대상 머리 위에 대사. 대상을 따라다니며 위로 떠오르고 마지막에 옅어진다.
+    // 대상 머리 위에 대사. 대상을 따라다니며 위로 떠오르고 마지막에 옅어진다. 기본 1.2초.
     public static void ShowAbove(Transform target, string line)
+    {
+        ShowAbove(target, line, above_duration);
+    }
+
+    // 표시 시간을 정해서. NPC 대사처럼 길게 띄울 때.
+    public static void ShowAbove(Transform target, string line, float seconds)
     {
         if (target == null || string.IsNullOrEmpty(line)) {
             return;
@@ -74,7 +80,7 @@ public class Popup_text : MonoBehaviour
         popup.follow_target = target;
         popup.base_position = target.position;
         popup.offset = new Vector2(0f, above_offset_y);
-        popup.Begin(line, Color.white, above_duration, above_rise, above_fade_time, 0f, 1f);
+        popup.Begin(line, Color.white, Mathf.Max(0.1f, seconds), above_rise, above_fade_time, 0f, 1f);
 
         following[target] = popup;
     }

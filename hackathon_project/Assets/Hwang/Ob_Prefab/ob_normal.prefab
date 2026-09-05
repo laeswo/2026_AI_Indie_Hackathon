@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &13797365698624920
+--- !u!1 &3969400130893675999
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,41 +8,42 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 896203799131594074}
-  - component: {fileID: 7855413837959727297}
-  - component: {fileID: 3854110492259969466}
-  - component: {fileID: 7617334048739189344}
-  - component: {fileID: 665369126748080256}
+  - component: {fileID: 4277550181514327827}
+  - component: {fileID: 9779666681633744}
+  - component: {fileID: 4830346850008882890}
+  - component: {fileID: 7079243432665844480}
+  - component: {fileID: 7616665038923089981}
+  - component: {fileID: 5958477713192077842}
   m_Layer: 0
-  m_Name: ob_sword
+  m_Name: ob_normal
   m_TagString: Crop
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &896203799131594074
+--- !u!4 &4277550181514327827
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 13797365698624920}
+  m_GameObject: {fileID: 3969400130893675999}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5.54, y: 1.64, z: 0}
+  m_LocalPosition: {x: 2.91, y: 1.29, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!212 &7855413837959727297
+--- !u!212 &9779666681633744
 SpriteRenderer:
   serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 13797365698624920}
+  m_GameObject: {fileID: 3969400130893675999}
   m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
@@ -85,7 +86,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 3625043607559282579, guid: 19fb86013d8c24d6cb8410c0aadf30fa, type: 3}
-  m_Color: {r: 0.8962264, g: 0.021137413, b: 0.021137413, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -94,14 +95,14 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!50 &3854110492259969466
+--- !u!50 &4830346850008882890
 Rigidbody2D:
   serializedVersion: 5
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 13797365698624920}
+  m_GameObject: {fileID: 3969400130893675999}
   m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
@@ -121,13 +122,13 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
---- !u!58 &7617334048739189344
+--- !u!58 &7079243432665844480
 CircleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 13797365698624920}
+  m_GameObject: {fileID: 3969400130893675999}
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
@@ -157,24 +158,25 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.5
---- !u!114 &665369126748080256
+--- !u!114 &7616665038923089981
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 13797365698624920}
+  m_GameObject: {fileID: 3969400130893675999}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e28e57ae4ccff54fbdcd9fc941085b0, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
-  display_name: 검
-  damage_min: 35
-  damage_max: 35
-  gravity_scale: 1
-  spin: 180
-  spawn_weight: 20
+  m_Name: 
+  m_EditorClassIdentifier: 
+  display_name: "\uB3CC"
+  dialogue_id: 
+  damage_min: 10
+  damage_max: 10
+  gravity_scale: 0.35
+  spin: 0
+  spawn_weight: 45
   pierce: 0
   counter_hits: 1
   heal_dragon: 0
@@ -184,3 +186,16 @@ MonoBehaviour:
   homing_turn_rate: 0
   throw_sound: {fileID: 0}
   hit_sound: {fileID: 0}
+--- !u!114 &5958477713192077842
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3969400130893675999}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79162650b25a34546b1eb7d744af3b71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Item_variants
+  resource_folder: Ob_normal

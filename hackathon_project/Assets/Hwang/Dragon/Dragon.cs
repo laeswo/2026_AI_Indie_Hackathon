@@ -14,6 +14,7 @@ using UnityEngine;
 //                          직선은 작물 2번, 포물선은 1번으로 격추. 포물선은 작아서 롱점프로도 넘는다
 //   State_slam_*           내려찍기(1페이즈). 예고 → 살짝 떠올랐다가 바닥으로 쿵 → 착지점부터 용사 쪽으로 땅이 연달아 솟음 → 복귀
 //                          솟는 땅은 낮아서 탭 점프로 넘는다. 착지 후 눌러앉은 동안 맞힐 수 있다
+//   State_stagger          상쇄(그로기). 성검에 맞으면 하던 패턴이 끊기고 무방비. 받는 데미지 2배. 끝나면 Idle
 // 밥먹기는 상태가 아니라 상시 동작이다. 어느 페이즈든 상태가 can_eat 이면(부유 중, 아래 돌진 중) 몸에 닿은 흘러오는 작물을 삼킨다.
 //
 //   1페이즈: 돌진(데미지 1) / 내려찍기(충격파 데미지 1) / 먹고 큰 화염구(데미지 2)
@@ -157,6 +158,16 @@ public class Dragon : MonoBehaviour
     internal float hurt_flash_time = 0.25f;
     internal float hit_hitstop_time = 0.05f;    // 작물 명중 때 아주 짧게 멈칫. 연타해도 큰 값 유지라 누적되지 않는다
 
+    // 상쇄(성검). 하던 패턴이 끊기고 무방비. 이 게임에서 제일 센 한 방이라 연출도 제일 세다.
+    // 등장·포효 중에는 성검도 안 통한다. 그 외엔 무적(돌진 복귀)이어도 통한다.
+    internal float stagger_time = 3.5f;
+    internal float stagger_sink = 0.6f;             // 그로기 동안 아래로 처지는 높이
+    internal float stagger_damage_multiplier = 2f;  // 그로기 중 받는 데미지 배수
+    internal float stagger_flash_time = 0.3f;       // 진입 순간 몸이 하얗게
+    internal float stagger_edge_margin = 2f;        // 화면 밖에서 맞았으면 이만큼 안쪽으로 당긴다
+    internal Color stagger_color = new Color(0.6f, 0.6f, 0.7f);   // 그로기 회색
+    internal Color stagger_gold = new Color(1f, 0.9f, 0.5f);      // 상쇄 금빛
+
     // 격추 연출. Game_flow.End 직전에.
     internal float end_shake_amplitude = 0.3f;
     internal float end_shake_time = 0.5f;
@@ -234,6 +245,7 @@ public class Dragon : MonoBehaviour
     float hover_phase;
     float hurt_timer;
     float heal_timer;
+    float stagger_flash_timer;
 
     public bool is_invincible
     {
@@ -778,6 +790,11 @@ public class Dragon : MonoBehaviour
                 continue;
             }
 
+            // 성검은 먹지 않는다. 용사가 주워서 던질 이벤트 아이템이라 드래곤 앞을 지나가도 그대로 흘려보낸다.
+            if (crop.GetComponent<Holy_sword>() != null) {
+                continue;
+            }
+
             if (Vector2.Distance(crop.transform.position, body.position) > radius) {
                 continue;
             }
@@ -800,11 +817,6 @@ public class Dragon : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // 무적일 때는 작물을 없애지도 않고 그냥 지나가게 둔다.
-        if (is_invincible) {
-            return;
-        }
-
         Crop_flow flow = other.GetComponentInParent<Crop_flow>();
 
         // 흘러가는 중이거나 손에 든 작물은 무시한다. 던져진 것만 맞는다.
@@ -813,6 +825,14 @@ public class Dragon : MonoBehaviour
         }
 
         Crop_data data = other.GetComponentInParent<Crop_data>();
+        bool holy = IsHolySword(data);
+
+        // 무적일 때는 작물을 없애지도 않고 그냥 지나가게 둔다. 성검만은 뚫는다.
+        // 단 등장·포효는 성검도 못 뚫는다. 자리 잡기 전이나 판이 바뀌는 순간에 끊기는 건 싱겁다.
+        if (is_invincible && (!holy || state is State_enter || state is State_roar)) {
+            return;
+        }
+
         string label = data != null ? data.display_name : flow.name;
 
         Vector2 hit_point = other.transform.position;
@@ -828,8 +848,10 @@ public class Dragon : MonoBehaviour
         }
         else {
             int damage = data != null ? data.RollDamage() : default_damage;
-            TakeDamage(damage, label);
-            Popup_text.ShowDamage(hit_point, damage);
+
+            // 그로기 중이면 배가 된 값이 돌아온다. 팝업도 실제로 깎인 만큼.
+            int dealt = TakeDamage(damage, label);
+            Popup_text.ShowDamage(hit_point, dealt > 0 ? dealt : damage);
         }
 
         if (data != null) {
@@ -840,6 +862,42 @@ public class Dragon : MonoBehaviour
 
         // 맞은 손맛. 아주 짧게 멈칫한다. 게임이 끝났으면 HitStop 이 스스로 무시한다.
         Camera_director.HitStop(hit_hitstop_time);
+
+        // 성검은 데미지와 별개로 하던 패턴을 끊는다. 이 한 방에 죽었으면 그로기는 없다.
+        if (holy && can_act) {
+            EnterStagger(label);
+        }
+    }
+
+    // 던진 작물이 성검인가. Holy_sword.Setup 이 스폰 때 dialogue_id 를 채운다.
+    internal bool IsHolySword(Crop_data data)
+    {
+        return data != null && data.dialogue_id == Holy_sword.dialogue_id;
+    }
+
+    // 상쇄. 지금 상태가 뭐든 그 자리에서 끊고 그로기로. 이전 상태의 Exit 가 불·바람·뱉기 이펙트를 치운다.
+    // 화면에 남은 큰 화염구와 진행 중인 충격파는 여기서 치운다. bigfire_pending / phase2_pending 은 그대로 두고 Idle 이 처리한다.
+    internal void EnterStagger(string source)
+    {
+        if (!can_act) {
+            return;
+        }
+
+        foreach (Fireball fireball in FindObjectsByType<Fireball>(FindObjectsSortMode.None)) {
+            fireball.ForceBreak();
+        }
+
+        foreach (Ground_eruption eruption in FindObjectsByType<Ground_eruption>(FindObjectsSortMode.None)) {
+            eruption.SinkNow();
+        }
+
+        ChangeState(new State_stagger(this, source));
+    }
+
+    // 몸을 잠깐 하얗게. 상쇄 진입 연출.
+    internal void FlashWhite(float seconds)
+    {
+        stagger_flash_timer = seconds;
     }
 
     // 생명포션 같은 함정 아이템에 맞았을 때. max_hp 를 넘지 않는다. 페이즈 2 예약은 되돌리지 않는다.
@@ -856,10 +914,16 @@ public class Dragon : MonoBehaviour
         Debug.Log("회복! " + source + " +" + (hp - before) + " (드래곤 HP " + hp + "/" + max_hp + ")");
     }
 
-    public void TakeDamage(int damage, string source)
+    // 실제로 깎은 양을 돌려준다. 그로기 중이면 배가 된 값. 이미 죽었거나 게임이 끝났으면 0.
+    public int TakeDamage(int damage, string source)
     {
         if (hp <= 0 || Game_flow.is_over) {
-            return;
+            return 0;
+        }
+
+        // 그로기 중에는 무방비. 받는 데미지가 배가 된다.
+        if (state is State_stagger) {
+            damage = Mathf.RoundToInt(damage * stagger_damage_multiplier);
         }
 
         hp -= damage;
@@ -883,13 +947,15 @@ public class Dragon : MonoBehaviour
             Camera_director.Flash(end_flash_color, end_flash_time);
 
             Game_flow.End("드래곤 격추");
-            return;
+            return damage;
         }
 
         // 하던 동작이 끝나고 제자리로 오면 전환한다. 그로기 중이면 그로기 시간을 다 채운 뒤에.
         if (phase == 1 && !phase2_pending && hp <= max_hp * phase2_hp_ratio) {
             phase2_pending = true;
         }
+
+        return damage;
     }
 
     // ---------- 표시 ----------
@@ -898,6 +964,7 @@ public class Dragon : MonoBehaviour
     {
         hurt_timer -= Time.deltaTime;
         heal_timer -= Time.deltaTime;
+        stagger_flash_timer -= Time.deltaTime;
         UpdateColor();
     }
 
@@ -905,7 +972,8 @@ public class Dragon : MonoBehaviour
     {
         // 예고 중에는 깜빡여서 곧 온다는 걸 읽게 한다. 어떤 색인지는 상태가 정한다. 전부 원래 색(base_color) 기준 틴트다.
         float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 30f);
-        Color color = heal_timer > 0f ? Tint(heal_color, 1f)
+        Color color = stagger_flash_timer > 0f ? Tint(Color.white, 1f)
+            : heal_timer > 0f ? Tint(heal_color, 1f)
             : hurt_timer > 0f ? Tint(hurt_color, 1f)
             : state.GetColor(pulse);
 

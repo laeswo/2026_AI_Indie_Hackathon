@@ -7,6 +7,9 @@ using UnityEngine;
 public class Crop_flow : MonoBehaviour
 {
 
+    // 눈에 잘 띄게. 조명에 어두워지지 않고(Unlit), 그림 크기를 이만큼 키운다. 콜라이더도 같이 커진다.
+    const float art_scale = 1.3f;
+
     float despawn_margin = 3f;   // 화면 왼쪽 끝에서 이만큼 더 나가면 지운다
     float fall_limit = -20f;     // 아래로 떨어져 사라진 것도 정리한다
 
@@ -28,6 +31,7 @@ public class Crop_flow : MonoBehaviour
 
     Rigidbody2D body;
     Collider2D[] colliders;
+    SpriteRenderer sprite_renderer;     // face_velocity 회전에 쓴다
 
     // 주워진 뒤 적용할 중력 배율. Crop_data.gravity_scale 이 단일 진실이고, 없을 때만 프리팹 Rigidbody2D 값을 쓴다.
     float thrown_gravity_scale;
@@ -37,11 +41,35 @@ public class Crop_flow : MonoBehaviour
     Dragon dragon;
     bool dragon_searched;
 
+    // Awake 뒤에 그림·크기를 정하는 것들(Item_variants, Holy_sword.Setup)이 끝난 다음 프레임에 손본다.
+    bool looks_applied;
+
+    void Start()
+    {
+        ApplyLooks();
+    }
+
+    void ApplyLooks()
+    {
+        if (looks_applied) {
+            return;
+        }
+        looks_applied = true;
+
+        // 주울 수 있는 건 조명과 상관없이 선명하게.
+        foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>()) {
+            Scene_lighting.ApplyUnlitMaterial(renderer);
+        }
+
+        transform.localScale *= art_scale;
+    }
+
     void Awake()
     {
         body = GetComponent<Rigidbody2D>();
         colliders = GetComponentsInChildren<Collider2D>();
         data = GetComponentInChildren<Crop_data>();
+        sprite_renderer = GetComponentInChildren<SpriteRenderer>();
 
         // 흐르는 동안 중력을 끄므로, 주워질 때 넣을 값을 여기서 정해 둔다.
         // 예측선(Throw_trajectory)이 body.gravityScale 을 읽으므로 이 값 하나만 맞으면 궤적도 맞는다.
@@ -119,6 +147,11 @@ public class Crop_flow : MonoBehaviour
         body.gravityScale = 0f;
         body.linearVelocity = Vector2.zero;
         body.angularVelocity = 0f;
+
+        // 흘러올 때 기본 자세. 창처럼 눕혀 두고 싶은 건 Crop_data.rest_angle 로.
+        if (data != null) {
+            body.rotation = data.rest_angle;
+        }
     }
 
     // 용사가 주웠을 때 호출한다. 이후 위치는 Player 가 직접 옮긴다.
@@ -170,6 +203,12 @@ public class Crop_flow : MonoBehaviour
 
         if (is_thrown && data != null && data.homing_turn_rate > 0f) {
             Home(Time.fixedDeltaTime);
+        }
+
+        // 창처럼 앞뒤가 있는 것은 날아가는 방향을 본다. 유도로 방향이 바뀌어도 따라간다.
+        if (is_thrown && data != null && data.face_velocity) {
+            body.angularVelocity = 0f;
+            Sprite_fit.RotateToward(transform, sprite_renderer, body.linearVelocity, data.art_faces_left, data.art_angle);
         }
     }
 
@@ -297,6 +336,14 @@ public class Crop_flow : MonoBehaviour
         }
 
         if (transform.position.x < World_scroll.LeftX() - despawn_margin) {
+            Destroy(gameObject);
+            return;
+        }
+
+        // 던진 것이 오른쪽·위로 화면을 벗어나면 정리한다. 중력 0 인 창은 떨어지지 않아 여기서만 사라진다.
+        // 흘러오는 것은 오른쪽 밖에서 태어나므로 던진 것만 본다.
+        if (is_thrown && (transform.position.x > World_scroll.RightX() + despawn_margin
+            || transform.position.y > World_scroll.TopY() + despawn_margin)) {
             Destroy(gameObject);
         }
     }

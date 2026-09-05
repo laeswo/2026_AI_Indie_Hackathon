@@ -216,6 +216,7 @@ public class Player : MonoBehaviour
 
         if (is_holding && hand_transform != null) {
             held_object.transform.position = hand_transform.position;
+            FaceHeldToward(GetThrowDirection());
         }
 
         if (Keyboard.current == null) {
@@ -315,6 +316,22 @@ public class Player : MonoBehaviour
         Tutorial.Fire("tuto_aim");
     }
 
+    // 손에 든 것이 face_velocity 면 던질 방향을 보게 돌린다. 창이 조준선과 같은 쪽을 향한다.
+    void FaceHeldToward(Vector2 direction)
+    {
+        if (held_object == null) {
+            return;
+        }
+
+        Crop_data data = held_object.GetComponentInChildren<Crop_data>();
+        if (data == null || !data.face_velocity) {
+            return;
+        }
+
+        SpriteRenderer renderer = held_object.GetComponentInChildren<SpriteRenderer>();
+        Sprite_fit.RotateToward(held_object.transform, renderer, direction, data.art_faces_left, data.art_angle);
+    }
+
     // 던졌을 때 실제로 생기는 속도. 던지기와 예측선이 같은 함수를 쓰므로 둘이 어긋날 일이 없다.
     Vector2 GetThrowVelocity()
     {
@@ -377,6 +394,11 @@ public class Player : MonoBehaviour
             Crop_flow flow = held_object.GetComponent<Crop_flow>();
             if (flow != null) {
                 flow.MarkThrown();
+
+                // 성검을 던졌다. 대장장이가 보고 있다면 배신당한다.
+                if (flow.data != null && flow.data.dialogue_id == Holy_sword.dialogue_id) {
+                    Smith_npc.OnHolySwordThrown();
+                }
             }
         }
 

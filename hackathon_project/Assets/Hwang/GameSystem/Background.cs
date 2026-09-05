@@ -20,8 +20,11 @@ public class Background : MonoBehaviour
     public bool mirror_alternate = true;    // 한 장 걸러 좌우 반전. 이음새가 안 보인다
     public int sorting_order = -100;        // 전부의 뒤
 
+    // 기본 틴트. 배경을 조금 어둡고 탁하게 눌러 앞에 있는 것들이 튀게 한다.
+    static readonly Color base_tint = new Color(0.7f, 0.72f, 0.8f);
+
     // 페이즈 2 분위기
-    static readonly Color phase2_tint = new Color(0.8f, 0.4f, 0.35f);
+    static readonly Color phase2_tint = new Color(0.6f, 0.32f, 0.28f);
     const float phase2_tint_time = 1.5f;
     const float phase2_scroll_multiplier = 1.3f;
 
@@ -154,6 +157,7 @@ public class Background : MonoBehaviour
         SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
         renderer.sprite = sprite;
         renderer.sortingOrder = sorting_order;
+        renderer.color = base_tint;
 
         // 화면 높이에 딱 맞게 키운다. 가로는 비율대로 따라오고, 부족하면 Scroll_layer 가 이어 붙인다.
         float sprite_height = Mathf.Max(0.01f, sprite.bounds.size.y);

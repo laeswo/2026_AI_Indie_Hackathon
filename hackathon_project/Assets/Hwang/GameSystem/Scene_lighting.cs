@@ -73,6 +73,8 @@ public class Scene_lighting : MonoBehaviour
     {
         instance = null;
         lit_material = null;
+        unlit_material = null;
+        unlit_shared = false;
     }
 
     // ---------- 밖에서 부르는 것 ----------
@@ -157,7 +159,46 @@ public class Scene_lighting : MonoBehaviour
         return glow;
     }
 
-    // 코드로 만든 SpriteRenderer 는 기본 머티리얼이 빛을 안 받는다(Sprites/Default). 빛 받는 걸로 바꿔 준다.
+    // 조명을 안 받는 머티리얼. 주울 수 있는 것(작물)은 어두운 세계에서도 선명해야 눈에 띈다.
+    //
+    // 반드시 URP 2D 전용 Sprite-Unlit-Default 를 쓴다. 빌트인 Sprites/Default 는 2D Renderer 에서 SRP Batcher 와 맞지 않아
+    // 같은 머티리얼을 공유하는 스프라이트들이 한 배치로 묶이면서 첫 스프라이트의 텍스처로 전부 그려진다(모든 아이템이 같은 그림).
+    // 2D 전용 셰이더는 스프라이트 텍스처를 렌더러마다 따로 넘기므로 공유해도 안전하다 (프로젝트 기본 Sprite-Unlit-Default 머티리얼과 같은 방식).
+    // 그 셰이더를 못 찾을 때만 Sprites/Default 로 폴백하는데, 그때는 공유하지 않고 렌더러마다 인스턴스를 준다. 작물 수가 적어 배칭 손해는 없다.
+    static Material unlit_material;
+    static bool unlit_shared;
+
+    public static void ApplyUnlitMaterial(SpriteRenderer renderer)
+    {
+        if (renderer == null) {
+            return;
+        }
+
+        if (unlit_material == null) {
+            Shader shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+            unlit_shared = shader != null;
+
+            if (shader == null) {
+                shader = Shader.Find("Sprites/Default");
+                if (shader == null) {
+                    Debug.LogWarning("Scene_lighting : Unlit 스프라이트 셰이더를 찾지 못해 머티리얼을 그대로 둡니다.");
+                    return;
+                }
+                Debug.LogWarning("Scene_lighting : Sprite-Unlit-Default 셰이더가 없어서 Sprites/Default 로 폴백합니다. 텍스처가 섞이지 않게 렌더러마다 따로 만듭니다.");
+            }
+
+            unlit_material = new Material(shader);
+            unlit_material.name = "Sprite-Unlit (코드)";
+        }
+
+        if (unlit_shared) {
+            renderer.sharedMaterial = unlit_material;
+        }
+        else {
+            renderer.material = new Material(unlit_material);
+        }
+    }
+
     public static void ApplyLitMaterial(SpriteRenderer renderer)
     {
         if (renderer == null) {
@@ -183,11 +224,13 @@ public class Scene_lighting : MonoBehaviour
             return lit_material;
         }
 
-        // 셰이더를 못 찾으면 씬에서 이미 빛을 받는 스프라이트의 머티리얼을 빌린다.
+        // 셰이더를 못 찾으면 씬에서 이미 빛을 받는 스프라이트의 셰이더를 빌려 새 머티리얼을 만든다.
+        // 그 렌더러의 머티리얼을 그대로 공유하면(인스턴스 머티리얼에 _MainTex 가 박혀 있을 수 있다) 텍스처가 섞일 수 있어서 복제한다.
         foreach (SpriteRenderer renderer in FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None)) {
             Material material = renderer.sharedMaterial;
             if (material != null && material.shader != null && material.shader.name.Contains("Sprite-Lit")) {
-                lit_material = material;
+                lit_material = new Material(material.shader);
+                lit_material.name = "Sprite-Lit (코드, 빌린 셰이더)";
                 return lit_material;
             }
         }

@@ -206,11 +206,28 @@ public class Hud : MonoBehaviour
         }
     }
 
-    // 에디터에서 Filled 로 안 맞춰 놨어도 동작하게 강제한다. 스프라이트가 없어도 fillAmount 는 먹는다.
+    // 흰 네모 스프라이트. Image 에 스프라이트가 없으면 Filled 타입이어도 fillAmount 를 무시하고 통째로 그리기 때문에 필요하다.
+    static Sprite white_sprite;
+
+    static Sprite WhiteSprite()
+    {
+        if (white_sprite == null) {
+            Texture2D texture = Texture2D.whiteTexture;
+            white_sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+        return white_sprite;
+    }
+
+    // 에디터에서 Filled 로 안 맞춰 놨어도 동작하게 강제한다.
     static void SetupBar(Image image)
     {
         if (image == null) {
             return;
+        }
+
+        // 스프라이트가 비어 있으면 채움이 안 줄어든다. 흰 네모라도 넣는다.
+        if (image.sprite == null) {
+            image.sprite = WhiteSprite();
         }
 
         image.type = Image.Type.Filled;

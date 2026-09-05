@@ -36,10 +36,10 @@ public class Ember_field : MonoBehaviour
             ember.transform.localScale = new Vector3(size, size, 1f);
             ember.transform.position = RandomPoint(false);
 
-            // 여섯 개 중 하나만 빛난다. 전부 켜면 라이트가 너무 많다.
+            // 여섯 개 중 하나만 아주 희미하게 빛난다. Additive 라이트는 조금만 줘도 Bloom 이 크게 번진다.
             if (i % 6 == 0) {
-                Glow_light glow = Scene_lighting.Attach(ember.transform, new Color(1f, 0.55f, 0.2f), 0.8f, 1.1f);
-                glow.flicker_amount = 0.5f;
+                Glow_light glow = Scene_lighting.Attach(ember.transform, new Color(1f, 0.5f, 0.2f), 0.05f, 0.5f);
+                glow.flicker_amount = 0.4f;
             }
 
             renderers[i] = renderer;

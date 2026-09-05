@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// 기본 상태들: 등장 / 대기 / 포효(페이즈 2)
+// 기본 상태들: 등장 / 대기 / 포효(페이즈 2) / 상쇄(그로기)
 
 // 씬에 놓은 자리에서 용사 반대쪽으로 물러난 곳에서 날아 들어온다. 그동안 공격하지 않는다.
 public class State_enter : Dragon_state
@@ -113,5 +113,90 @@ public class State_roar : Dragon_state
     public override Color GetColor(float pulse)
     {
         return dragon.Tint(dragon.roar_color, pulse);
+    }
+}
+
+// 상쇄(그로기). 성검에 맞으면 하던 패턴이 그 자리에서 끊기고 여기로 온다. Dragon.EnterStagger 가 부른다.
+// 무방비: 무적 아님, 안 먹음, 받는 데미지 2배(Dragon.TakeDamage). 제자리에서 천천히 아래로 처지며 회색으로 깜빡인다.
+// 이전 상태의 Exit 가 불·바람·뱉기 이펙트를 치우고, 큰 화염구·충격파는 EnterStagger 가 치운다.
+// 뱉기 도중 끊긴 건 그냥 취소다 (State_spit.Enter 가 bigfire_pending 을 이미 내렸고 되살리지 않는다. eat_stack 은 남는다).
+// phase2_pending 은 그대로 두고, 끝나서 Idle 로 가면 거기서 처리한다.
+public class State_stagger : Dragon_state
+{
+
+    readonly string source;
+    Vector2 from;
+    Vector2 rest;
+
+    public State_stagger(Dragon dragon, string source) : base(dragon)
+    {
+        this.source = source;
+    }
+
+    // 전부 기본값(false)이지만 "무방비" 가 이 상태의 정의라 눈에 보이게 적어 둔다.
+    public override bool is_invincible
+    {
+        get { return false; }
+    }
+
+    public override bool can_eat
+    {
+        get { return false; }
+    }
+
+    public override void Enter()
+    {
+        // 돌진 복귀(화면 밖) 중에 맞았을 수 있다. 보이는 곳으로 당겨서 거기서 처진다.
+        from = dragon.position;
+        from.x = Mathf.Clamp(from.x, World_scroll.LeftX() + dragon.stagger_edge_margin, World_scroll.RightX() - dragon.stagger_edge_margin);
+        rest = from + Vector2.down * dragon.stagger_sink;
+        dragon.MoveTo(from);
+
+        timer = dragon.stagger_time;
+
+        PlayEffects();
+
+        Debug.Log("상쇄! " + source + " - " + dragon.stagger_time + "초 무방비");
+    }
+
+    // 이 게임에서 제일 센 한 방. 멈칫 → 느려짐 → 흔들림 → 당김 → 금빛 번쩍 → 라이트 → 글자 → 몸 하얗게.
+    void PlayEffects()
+    {
+        Vector3 position = dragon.transform.position;
+        Color gold = dragon.stagger_gold;
+        Color gold_flash = gold;
+        gold_flash.a = 0.6f;
+
+        Camera_director.HitStop(0.12f);
+        Camera_director.SlowMo(0.25f, 0.8f);
+        Camera_director.Shake(0.4f, 0.5f);
+        Camera_director.ZoomPunch(0.12f, 0.6f);
+        Camera_director.Flash(gold_flash, 0.35f);
+        Scene_lighting.Flash(position, gold, 1.2f, 6f, 0.6f);
+        Popup_text.ShowText((Vector2)position + Vector2.up * 1.5f, "상쇄!", gold);
+
+        dragon.FlashWhite(dragon.stagger_flash_time);
+    }
+
+    public override void FixedTick(float dt)
+    {
+        bool done = CountDown(dt);
+
+        // 천천히 아래로 처진다. 끝으로 갈수록 느리게.
+        MoveEased(from, rest, dragon.stagger_time);
+
+        if (done) {
+            Debug.Log("상쇄 해제");
+
+            // 바로 다음 패턴이 나오지 않게 짧은 여유만 주고 대기로.
+            dragon.attack_timer = 0.8f;
+            dragon.ChangeState(new State_idle(dragon));
+        }
+    }
+
+    // 회색에 살짝 깜빡임.
+    public override Color GetColor(float pulse)
+    {
+        return dragon.Tint(dragon.stagger_color, 0.8f + 0.2f * pulse);
     }
 }

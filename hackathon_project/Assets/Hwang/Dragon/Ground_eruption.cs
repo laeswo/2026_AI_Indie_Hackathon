@@ -96,6 +96,20 @@ public class Ground_eruption : MonoBehaviour
         }
     }
 
+    // 밖에서 끊는다(상쇄). 더 낳지 않고, 솟아 있는 조각은 유지를 건너뛰고 바로 가라앉는다. 판정도 멈춘다.
+    public void SinkNow()
+    {
+        spawning_done = true;
+        hit_done = true;
+
+        float hold_end = config.rise_time + config.hold_time;
+        foreach (Segment segment in segments) {
+            if (segment.age < hold_end) {
+                segment.age = hold_end;
+            }
+        }
+    }
+
     // ---------- 세그먼트 낳기 ----------
 
     void TickSpawn(float dt)

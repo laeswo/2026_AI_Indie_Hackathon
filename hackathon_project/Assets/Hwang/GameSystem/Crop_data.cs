@@ -24,6 +24,10 @@ public class Crop_data : MonoBehaviour
     [Header("물리")]
     public float gravity_scale = 1f;    // 가벼움 0.35 / 보통 1.0 / 무거움 1.8. 프리팹 Rigidbody2D 의 Gravity Scale 은 무시하고 이 값을 쓴다
     public float spin = 0f;             // 던질 때 회전 (도/초). 0 이면 안 돈다. 검·종 180, 도끼 720. 프리팹의 Freeze Rotation Z 가 꺼져 있어야 보인다
+    public bool face_velocity = false;  // 손에 들고 조준할 때와 던진 뒤에 그림이 날아가는 방향을 본다. 창처럼 앞뒤가 있는 것. spin 과 같이 쓰지 않는다
+    public bool art_faces_left = false; // face_velocity 용. 그림이 왼쪽을 보고 그려졌으면 켠다 (창 그림은 오른쪽을 본다)
+    public float art_angle = 0f;        // face_velocity 용. 그림의 "앞"이 어느 쪽을 향해 그려졌는지 (도). 0 오른쪽, 90 위, -90 아래, 180 왼쪽. art_faces_left 가 켜져 있으면 180 으로 친다
+    public float rest_angle = 0f;       // 흘러올 때·손에 들었을 때 그림 회전 (도). 창을 비스듬히 눕히고 싶으면 여기
 
     [Header("등장")]
     public float spawn_weight = 10f;    // 등장 가중치. 0 이면 안 나온다. 같은 종류가 여러 프리팹이면 나눠서 넣는다

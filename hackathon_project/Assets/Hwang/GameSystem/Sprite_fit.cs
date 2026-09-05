@@ -257,6 +257,12 @@ public static class Sprite_fit
     // 속도 방향을 보게 회전시킨다. flipX 상태와 art_faces_left 를 반영해서 앞이 진행 방향을 향한다.
     public static void RotateToward(Transform target, SpriteRenderer renderer, Vector2 velocity, bool art_faces_left)
     {
+        RotateToward(target, renderer, velocity, art_faces_left, 0f);
+    }
+
+    // art_angle: 그림의 앞이 그려진 방향(도). 그만큼 빼서 앞이 진행 방향을 보게 한다. art_faces_left 면 180 으로 친다.
+    public static void RotateToward(Transform target, SpriteRenderer renderer, Vector2 velocity, bool art_faces_left, float art_angle)
+    {
         if (target == null || velocity.sqrMagnitude < 0.0001f) {
             return;
         }
@@ -264,6 +270,9 @@ public static class Sprite_fit
         float angle = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
         if (FrontIsNegativeX(renderer, art_faces_left)) {
             angle += 180f;
+        }
+        else {
+            angle -= art_angle;
         }
 
         target.rotation = Quaternion.Euler(0f, 0f, angle);

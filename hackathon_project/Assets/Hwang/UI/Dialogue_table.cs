@@ -21,6 +21,7 @@ public static class Dialogue_table
         { "tuto_jump",  new[] { "스페이스로 점프, 길게 누르면 높이" } },
 
         { "pickup_sword",   new[] { "던지기 딱 좋은 검이다" } },
+        { "pickup_bell",    new[] { "누가 종을 여기에" } },      // 표에 초안 없음, 임시
         { "pickup_spear",   new[] { "관통하기 좋아보이는 창이야" } },
         { "pickup_axe",     new[] { "묵직한 도끼다" } },        // 표에 초안 없음, 임시
         { "pickup_potion",  new[] { "이건 마시는 건데" } },     // 표에 초안 없음, 임시
@@ -30,6 +31,11 @@ public static class Dialogue_table
         { "pickup_brick",   new[] { "아파도 참아라!" } },
         { "pickup_stone",   new[] { "돌은 돌이다" } },          // 표에 초안 없음, 임시
         { "pickup_water",   new[] { "출렁출렁" } },             // 표에 초안 없음, 임시
+        { "pickup_chair",   new[] { "앉을 시간은 없다" } },      // 표에 초안 없음, 임시
+
+        // 성검 이벤트
+        { "pickup_holysword", new[] { "손이 떨린다…" } },         // 표에 초안 없음, 임시
+        { "smith_02",         new[] { "용사…!! 내 희대의 역작이…!!!" } },   // 대장장이. 성검을 던진 직후
     };
 
     // id → 여러 줄 대사 (순서대로 전부 보여준다). 전체화면 인트로처럼 줄이 쌓이는 것. 한 줄 25자 이내.
@@ -41,17 +47,23 @@ public static class Dialogue_table
             "모두가 나에게 도와달라 하지만",
             "난 손에 쥔 걸 전부 던져버린다고",
         } },
+
+        // 대장장이. 성검을 들고 등장할 때 (드래곤 HP 40% 이하). 한 줄 30자 이내
+        { "smith_01", new[] {
+            "용사… 이건 전설의 성검…",
+            "절대로 던지지 말게나",
+        } },
     };
 
     // 프리팹 이름 → id 후보. ob_normal 은 여러 물건을 한 프리팹으로 쓰므로 그중 랜덤.
     static readonly Dictionary<string, string[]> prefab_ids = new Dictionary<string, string[]>
     {
-        { "ob_sword",    new[] { "pickup_sword" } },
+        { "ob_sword",    new[] { "pickup_sword", "pickup_bell" } },
         { "ob_drill",    new[] { "pickup_spear" } },
         { "ob_axe",      new[] { "pickup_axe" } },
         { "ob_hp_drink", new[] { "pickup_potion" } },
         { "ob_bomb",     new[] { "pickup_rare" } },
-        { "ob_normal",   new[] { "pickup_pot", "pickup_chicken", "pickup_brick", "pickup_stone", "pickup_water" } },
+        { "ob_normal",   new[] { "pickup_pot", "pickup_chicken", "pickup_brick", "pickup_stone", "pickup_water", "pickup_chair" } },
     };
 
     // 아이템을 주웠을 때 띄울 대사. 없으면 null.
